@@ -50,6 +50,7 @@ export default function AddCardScreen() {
         }
       }
       showToast('Card added');
+      await queryClient.invalidateQueries({ queryKey: ['cards', user.id] });
       await queryClient.invalidateQueries({ queryKey: ['home', user.id] });
       goBack();
     } catch (err) {

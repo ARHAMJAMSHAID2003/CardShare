@@ -5,7 +5,7 @@ import { formatPkr, sharingOn } from '../utils/format';
 import SharingSwitch from './SharingSwitch';
 import VirtualCard from './VirtualCard';
 
-function CardPage({ card, displayName, earnedByCard, onToggleSharing, onRemove }) {
+function CardPage({ card, displayName, earnedByCard, onToggleSharing, onRemove, showRemove }) {
   const sharing = sharingOn(card.allow_sharing);
   return (
     <View style={styles.cardShell}>
@@ -33,20 +33,22 @@ function CardPage({ card, displayName, earnedByCard, onToggleSharing, onRemove }
               : 'Your circle cannot see this card.'}
           </Text>
         </View>
-        <Pressable
-          style={styles.removeButton}
-          onPress={() => onRemove?.(card)}
-          accessibilityRole="button"
-          accessibilityLabel="Remove card"
-        >
-          <Text style={styles.removeText}>Remove</Text>
-        </Pressable>
+        {showRemove ? (
+          <Pressable
+            style={styles.removeButton}
+            onPress={() => onRemove?.(card)}
+            accessibilityRole="button"
+            accessibilityLabel="Remove card"
+          >
+            <Text style={styles.removeText}>Remove</Text>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
 }
 
-export default function CardCarousel({ cards, displayName, earnedByCard = {}, onToggleSharing, onRemove }) {
+export default function CardCarousel({ cards, displayName, earnedByCard = {}, onToggleSharing, onRemove, showRemove = true }) {
   const scroller = useRef(null);
   const indexRef = useRef(0);
   const widthRef = useRef(0);
@@ -110,6 +112,7 @@ export default function CardCarousel({ cards, displayName, earnedByCard = {}, on
                   earnedByCard={earnedByCard}
                   onToggleSharing={onToggleSharing}
                   onRemove={onRemove}
+                  showRemove={showRemove}
                 />
               </View>
             ))}

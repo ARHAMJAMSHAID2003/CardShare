@@ -949,6 +949,66 @@ END;
 $$ LANGUAGE plpgsql;
 
 
+-- Accepted circle members who are sharing at least one card.
+-- Each person includes contact_name (viewer's label) and their sharing cards.
+CREATE OR REPLACE FUNCTION get_circle_sharing_cards(
+  p_user_id VARCHAR(36)
+) RETURNS JSON AS $$
+BEGIN
+  RETURN (
+    SELECT COALESCE(
+      json_agg(
+        json_build_object(
+          'id', p.id,
+          'display_name', p.display_name,
+          'phone', p.phone,
+          'contact_name', p.contact_name,
+          'cards', p.cards
+        )
+        ORDER BY p.sort_name, p.id
+      ),
+      '[]'::json
+    )
+    FROM (
+      SELECT
+        u.id,
+        u.display_name,
+        u.phone,
+        f.contact_name,
+        COALESCE(NULLIF(TRIM(f.contact_name), ''), u.display_name, u.phone) AS sort_name,
+        (
+          SELECT COALESCE(
+            json_agg(
+              json_build_object(
+                'id', c.id,
+                'bank_name', c.bank_name,
+                'card_tier', c.card_tier
+              )
+              ORDER BY c.created_at DESC
+            ),
+            '[]'::json
+          )
+          FROM cards c
+          WHERE c.user_id = u.id
+          AND c.allow_sharing = 1
+        ) AS cards
+      FROM (
+        SELECT friend_id AS person_id, sender_contact_name AS contact_name
+        FROM circle
+        WHERE user_id = p_user_id AND c_status = 'accepted'
+        UNION
+        SELECT user_id AS person_id, friend_contact_name AS contact_name
+        FROM circle
+        WHERE friend_id = p_user_id AND c_status = 'accepted'
+      ) f
+      JOIN users u ON u.id = f.person_id
+    ) p
+    WHERE json_array_length(p.cards) > 0
+  );
+END;
+$$ LANGUAGE plpgsql;
+
+
 -- Accepted circle members who are sharing this bank and tier.
 -- Two cards of the same bank and tier use the newer card.
 -- has_live_order is true when the viewer already has a live request with that person.

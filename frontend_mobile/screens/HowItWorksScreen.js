@@ -14,7 +14,7 @@ const slides = [
     title: 'Build your circle',
     body: 'Add friends and family you trust.',
     steps: [
-      ['Open the ', { b: 'Circle' }, ' tab and tap ', { b: '+ Add' }],
+      ['Open ', { b: 'Circle' }, ' in the menu and tap ', { b: '+ Add' }],
       ['Type their phone number'],
       ['Send the invite to connect'],
     ],
@@ -24,7 +24,7 @@ const slides = [
     title: 'Share the benefit, not the card',
     body: 'Cardholders turn on sharing and place orders for friends.',
     steps: [
-      ['Pick the card in your ', { b: 'Request' }, ' screen'],
+      ['Tap ', { b: 'Start new order' }, ' and pick a card'],
       ['Add the store, price, and your delivery address'],
       ['They accept, order, and upload the receipt'],
     ],

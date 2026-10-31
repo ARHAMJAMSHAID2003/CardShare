@@ -1,7 +1,10 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import theme from '../constants/theme';
+import { useRoleMode } from '../context/RoleMode';
 import { useRequestInbox } from '../context/RequestInbox';
 import { useBottomInset } from '../hooks/useTopInset';
+import { itemsForMode } from '../utils/orderBanner';
+import { isYourTurn } from '../utils/requestInbox';
 import { NavIcon } from './NavIcons';
 
 function unreadLabel(count) {
@@ -14,13 +17,15 @@ function unreadLabel(count) {
 const TABS = [
   ['Home', 'home', 'Home'],
   ['Request', 'request', 'Request'],
-  ['Circle', 'circle', 'Circle'],
 ];
 
 export default function BottomNav({ state, navigation }) {
   const bottomInset = useBottomInset();
-  const { yourTurn, unreadTotal } = useRequestInbox();
-  const unread = unreadLabel(unreadTotal);
+  const { mode } = useRoleMode();
+  const { items } = useRequestInbox();
+  const visible = itemsForMode(items, mode);
+  const yourTurn = visible.some(isYourTurn);
+  const unread = unreadLabel(visible.reduce((sum, item) => sum + (Number(item.unreadCount) || 0), 0));
   const activeName = state.routes[state.index]?.name;
   return (
     <View style={[styles.nav, { paddingBottom: bottomInset }]}>

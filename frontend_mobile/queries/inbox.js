@@ -1,5 +1,4 @@
 import { queryOptions, useQuery } from '@tanstack/react-query';
-import { useIsFocused } from '@react-navigation/native';
 import { getActiveOrders, getIncomingRequests, getUnpaidOrders } from '../api/holder';
 import { getActiveRequests, getUnpaidRequests } from '../api/requester';
 import { useSession } from '../context/SessionContext';
@@ -39,11 +38,10 @@ export function inboxQueryOptions(sessionId, userId) {
 
 export function useRequestInbox() {
   const { sessionId, user } = useSession();
-  const focused = useIsFocused();
   const userId = user?.id;
   const query = useQuery({
     ...inboxQueryOptions(sessionId, userId),
-    enabled: Boolean(focused && sessionId && userId),
+    enabled: Boolean(sessionId && userId),
   });
   const items = query.data?.items ?? [];
   return {

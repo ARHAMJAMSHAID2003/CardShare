@@ -93,6 +93,22 @@ const getCircle = async (req, res) => {
   }
 };
 
+// GET /api/circle/sharing-cards
+// Accepted circle members and the cards they are sharing.
+const getSharingCards = async (req, res) => {
+  const user_id = req.user.id;
+
+  try {
+    const { rows } = await db.query(
+      'SELECT get_circle_sharing_cards($1) AS result',
+      [user_id]
+    );
+    res.json(rows[0].result ?? []);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
 // GET /api/circle/card-holders?bank=&tier=
 // Accepted circle members sharing this bank and tier. Each row includes the
 // card to use and whether a live order already exists with that person.
@@ -197,6 +213,7 @@ module.exports = {
   respondToInvite,
   cancelInvite,
   getCircle,
+  getSharingCards,
   getCardHolders,
   getCircleCards,
   removeFromCircle,

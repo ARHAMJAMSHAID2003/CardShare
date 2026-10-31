@@ -230,6 +230,7 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     flex: 1,
+    backgroundColor: theme.colors.overlay,
   },
   menu: {
     position: 'absolute',

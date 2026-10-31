@@ -75,6 +75,7 @@ export default function AddCircleScreen() {
       await sendCircleInvite(sessionId, user.id, found.id, contactName);
       showToast('Invite sent');
       await queryClient.invalidateQueries({ queryKey: ['circle', user.id] });
+      await queryClient.invalidateQueries({ queryKey: ['circle-cards', user.id] });
       navigation.goBack();
     } catch (err) {
       setError(err.message);

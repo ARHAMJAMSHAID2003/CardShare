@@ -33,6 +33,10 @@ export function respondToCircleInvite(sessionId, userId, friendId, status, conta
   });
 }
 
+export function getSharingCards(sessionId, userId, options = {}) {
+  return apiRequest('/api/circle/sharing-cards', { sessionId, userId, signal: options.signal });
+}
+
 export function getCircleCards(sessionId, userId, friendId, options = {}) {
   return apiRequest(`/api/circle/${friendId}/cards`, { sessionId, userId, signal: options.signal });
 }

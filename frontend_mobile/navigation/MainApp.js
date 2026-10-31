@@ -11,6 +11,7 @@ import CardDetailScreen from '../screens/CardDetailScreen';
 import ChatScreen from '../screens/ChatScreen';
 import CircleScreen from '../screens/CircleScreen';
 import CreateRequestScreen from '../screens/CreateRequestScreen';
+import MyCardsScreen from '../screens/MyCardsScreen';
 import HistoryListScreen from '../screens/HistoryListScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import HomeScreen from '../screens/HomeScreen';
@@ -21,6 +22,7 @@ import RequestDetailRequesterScreen from '../screens/RequestDetailRequesterScree
 import RequestsScreen from '../screens/RequestsScreen';
 import TransactionDetailScreen from '../screens/TransactionDetailScreen';
 import theme from '../constants/theme';
+import { RoleModeProvider } from '../context/RoleMode';
 import { AppActionsProvider } from './AppActions';
 import { screenId } from './openScreen';
 
@@ -55,7 +57,6 @@ function MainTabs() {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Request" component={RequestsScreen} />
-      <Tab.Screen name="Circle" component={CircleScreen} />
     </Tab.Navigator>
   );
 }
@@ -91,7 +92,7 @@ function MainAppShell({ onLoggedOut }) {
 
   const syncTabs = () => {
     const name = navigationRef.getCurrentRoute()?.name;
-    setTabsFocused(name === 'Home' || name === 'Request' || name === 'Circle');
+    setTabsFocused(name === 'Home' || name === 'Request');
   };
 
   useEffect(() => {
@@ -105,6 +106,7 @@ function MainAppShell({ onLoggedOut }) {
   }, [menuOpen]);
 
   return (
+    <RoleModeProvider>
     <AppActionsProvider value={{ openMenu: () => setMenuOpen(true), onLoggedOut }}>
       <View style={{ flex: 1 }}>
         <NavigationContainer ref={navigationRef} theme={navigationTheme} onReady={syncTabs} onStateChange={syncTabs}>
@@ -113,6 +115,8 @@ function MainAppShell({ onLoggedOut }) {
             <Stack.Screen name="add-card" component={AddCardScreen} getId={screenId} />
             <Stack.Screen name="card-detail" component={CardDetailScreen} getId={screenId} />
             <Stack.Screen name="add-circle" component={AddCircleScreen} getId={screenId} />
+            <Stack.Screen name="circle" component={CircleScreen} getId={screenId} />
+            <Stack.Screen name="my-cards" component={MyCardsScreen} getId={screenId} />
             <Stack.Screen name="create-request" component={CreateRequestScreen} getId={screenId} />
             <Stack.Screen name="history" component={HistoryScreen} getId={screenId} />
             <Stack.Screen name="history-list" component={HistoryListScreen} getId={screenId} />
@@ -127,6 +131,14 @@ function MainAppShell({ onLoggedOut }) {
         <SideMenu
           visible={menuOpen && tabsFocused}
           onClose={() => setMenuOpen(false)}
+          onCircle={() => {
+            setMenuOpen(false);
+            navigationRef.navigate('circle', { filter: 'circle', at: Date.now() });
+          }}
+          onCards={() => {
+            setMenuOpen(false);
+            navigationRef.navigate('my-cards');
+          }}
           onHistory={() => {
             setMenuOpen(false);
             navigationRef.navigate('history');
@@ -139,6 +151,7 @@ function MainAppShell({ onLoggedOut }) {
         />
       </View>
     </AppActionsProvider>
+    </RoleModeProvider>
   );
 }
 

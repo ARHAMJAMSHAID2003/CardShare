@@ -52,14 +52,8 @@ export function openRequests(navigation) {
 
 export function openCircle(navigation, options = {}) {
   const stack = findStack(navigation);
-  const routes = stack.getState()?.routes ?? [];
-  const index = routes.findIndex((route) => route.name === 'Tabs');
-  if (index >= 0) {
-    const distance = routes.length - 1 - index;
-    if (distance > 0) stack.pop(distance);
-  }
-  stack.navigate('Tabs', {
-    screen: 'Circle',
-    params: { filter: options.pending ? 'pending' : 'circle', at: Date.now() },
+  stack.navigate('circle', {
+    filter: options.pending ? 'pending' : 'circle',
+    at: Date.now(),
   });
 }

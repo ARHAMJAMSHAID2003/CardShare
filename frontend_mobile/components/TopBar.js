@@ -93,13 +93,13 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     backgroundColor: theme.colors.green,
-    borderRadius: theme.radius.xs,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.radius.pill,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
   },
   actionText: {
     fontFamily: theme.fonts.bodyMedium,
-    fontSize: theme.fontSize.small,
+    fontSize: theme.fontSize.body,
     color: theme.colors.black,
   },
   spacer: {

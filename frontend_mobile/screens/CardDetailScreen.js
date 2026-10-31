@@ -41,6 +41,7 @@ export default function CardDetailScreen() {
       await deleteCard(sessionId, user.id, cardId);
       showToast('Card deleted');
       setConfirmDelete(false);
+      await queryClient.invalidateQueries({ queryKey: ['cards', user.id] });
       await queryClient.invalidateQueries({ queryKey: ['home', user.id] });
       navigation.goBack();
     } catch (err) {

@@ -20,6 +20,7 @@ export default function Badge({ label, variant = 'gray' }) {
 
 const styles = StyleSheet.create({
   wrap: {
+    alignSelf: 'flex-start',
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.xs,
     borderRadius: theme.radius.pill,

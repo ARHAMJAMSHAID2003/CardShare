@@ -10,6 +10,23 @@ import { formatDisplayName } from '../utils/initials';
 import ConfirmDialog from './ConfirmDialog';
 
 function MenuIcon({ name, color, size = 22 }) {
+  if (name === 'circle') {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        <Circle cx="9" cy="8" r="3" stroke={color} strokeWidth="1.8" />
+        <Path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+        <Path d="M16 6c1.7 0 3 1.3 3 3s-1.3 3-3 3M18 17c1.7.6 3 2.3 3 4" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+      </Svg>
+    );
+  }
+  if (name === 'cards') {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        <Path d="M3 8.5h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-10z" stroke={color} strokeWidth="1.8" />
+        <Path d="M7 8.5V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2" stroke={color} strokeWidth="1.8" />
+      </Svg>
+    );
+  }
   if (name === 'profile') {
     return (
       <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -44,7 +61,7 @@ function MenuIcon({ name, color, size = 22 }) {
   );
 }
 
-export default function SideMenu({ visible, onClose, onHistory, onHowItWorks, onLoggedOut }) {
+export default function SideMenu({ visible, onClose, onCircle, onCards, onHistory, onHowItWorks, onLoggedOut }) {
   const { sessionId, user, signOut } = useSession();
   const topInset = useTopInset();
   const history = useQuery({
@@ -111,6 +128,14 @@ export default function SideMenu({ visible, onClose, onHistory, onHowItWorks, on
             <MenuIcon name="profile" color={theme.colors.text} size={22} />
             <Text style={styles.name} numberOfLines={1}>{formatDisplayName(user?.display_name) || 'Account'}</Text>
           </View>
+          <Pressable style={styles.row} onPress={onCircle} accessibilityRole="button" accessibilityLabel="Circle">
+            <MenuIcon name="circle" color={theme.colors.text2} size={22} />
+            <Text style={styles.rowText}>Circle</Text>
+          </Pressable>
+          <Pressable style={styles.row} onPress={onCards} accessibilityRole="button" accessibilityLabel="My cards">
+            <MenuIcon name="cards" color={theme.colors.text2} size={22} />
+            <Text style={styles.rowText}>My cards</Text>
+          </Pressable>
           {showHistory ? (
             <Pressable style={styles.row} onPress={onHistory} accessibilityRole="button" accessibilityLabel="History">
               <MenuIcon name="history" color={theme.colors.text2} size={22} />

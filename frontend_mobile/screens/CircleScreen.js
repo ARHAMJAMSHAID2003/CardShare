@@ -13,7 +13,6 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import theme from '../constants/theme';
 import { useSession } from '../context/SessionContext';
 import { useToast } from '../context/ToastContext';
-import { useAppActions } from '../navigation/AppActions';
 import { openScreen } from '../navigation/openScreen';
 import { queryClient } from '../queries/client';
 import { useScreenQuery } from '../queries/useScreenQuery';
@@ -64,7 +63,6 @@ function circleBadge(member) {
 export default function CircleScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { openMenu } = useAppActions();
   const { sessionId, user } = useSession();
   const showToast = useToast();
   const [workingId, setWorkingId] = useState(null);
@@ -124,6 +122,7 @@ export default function CircleScreen() {
       setConfirm(null);
       showToast(status === 'accepted' ? 'Invite accepted' : 'Invite declined');
       await queryClient.invalidateQueries({ queryKey: ['circle', user.id] });
+      await queryClient.invalidateQueries({ queryKey: ['circle-cards', user.id] });
     } catch (err) {
       setActionError(err.message);
     } finally {
@@ -139,10 +138,12 @@ export default function CircleScreen() {
       showToast('Invite cancelled');
       setConfirm(null);
       await queryClient.invalidateQueries({ queryKey: ['circle', user.id] });
+      await queryClient.invalidateQueries({ queryKey: ['circle-cards', user.id] });
     } catch (err) {
       setConfirm(null);
       setActionError(err.message);
       await queryClient.invalidateQueries({ queryKey: ['circle', user.id] });
+      await queryClient.invalidateQueries({ queryKey: ['circle-cards', user.id] });
     } finally {
       setWorkingId(null);
     }
@@ -156,6 +157,7 @@ export default function CircleScreen() {
       showToast('Removed from circle');
       setConfirm(null);
       await queryClient.invalidateQueries({ queryKey: ['circle', user.id] });
+      await queryClient.invalidateQueries({ queryKey: ['circle-cards', user.id] });
     } catch (err) {
       setActionError(err.message);
     } finally {
@@ -170,8 +172,7 @@ export default function CircleScreen() {
     >
       <TopBar
         title="Trusted Circle"
-        displayName={user.display_name}
-        onAccount={openMenu}
+        onBack={() => navigation.goBack()}
         actionLabel="+ Add"
         onAction={() => openScreen(navigation, 'add-circle')}
       />
