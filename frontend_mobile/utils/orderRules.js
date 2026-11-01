@@ -11,12 +11,18 @@ export const TXN_STATUS_LABELS = {
   cancelled_by_holder: 'Cancelled by the card holder',
 };
 
-export function txnStatusLabel(status, role) {
+function firstWord(name) {
+  return String(name || '').trim().split(/\s+/)[0];
+}
+
+// Badge text for a closed order. A cancelled one names who cancelled.
+export function txnStatusLabel(status, role, personName) {
+  const first = firstWord(personName);
   if (status === 'cancelled_by_requester') {
-    return role === 'requester' ? 'You cancelled' : 'Requester cancelled';
+    return role === 'requester' ? 'You cancelled' : `${first || 'They'} cancelled`;
   }
   if (status === 'cancelled_by_holder') {
-    return role === 'holder' ? 'You cancelled' : 'Card holder cancelled';
+    return role === 'holder' ? 'You cancelled' : `${first || 'They'} cancelled`;
   }
   return TXN_STATUS_LABELS[status] || status;
 }

@@ -1,16 +1,53 @@
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
 import theme from '../constants/theme';
+import CardPager from './CardPager';
 import EmptyState from './EmptyState';
 import VirtualCard from './VirtualCard';
+
+const AVATARS = [
+  { color: theme.colors.green, bg: theme.colors.greenDim, border: 'rgba(0, 200, 122, 0.35)' },
+  { color: theme.colors.amber, bg: theme.colors.amberDim, border: 'rgba(245, 166, 35, 0.3)' },
+  { color: '#B4A0FF', bg: 'rgba(180, 160, 255, 0.12)', border: 'rgba(180, 160, 255, 0.3)' },
+];
 
 function personLabel(person) {
   return person.contact_name || person.display_name || person.phone || 'Someone';
 }
 
-export default function CircleCardViewer({ people }) {
+function Avatar({ tone }) {
+  return (
+    <View style={[styles.avatar, { backgroundColor: tone.bg, borderColor: tone.border }]}>
+      <Svg width={19} height={19} viewBox="0 0 24 24" fill="none">
+        <Circle cx="12" cy="8" r="3.2" stroke={tone.color} strokeWidth="1.7" />
+        <Path d="M5.5 19.5c.6-3.2 3.2-5 6.5-5s5.9 1.8 6.5 5" stroke={tone.color} strokeWidth="1.7" strokeLinecap="round" />
+      </Svg>
+    </View>
+  );
+}
+
+function Chevron({ direction }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Path
+        d={direction === 'left' ? 'M15 5l-7 7 7 7' : 'M9 5l7 7-7 7'}
+        stroke="rgba(255, 255, 255, 0.72)"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+// Circle members who share cards, one member at a time. The cards under a
+// member swipe; the arrows below move between members. onRequest gets the
+// member and the card showing, so the order starts with only that person.
+export default function CircleCardViewer({ people, onRequest }) {
   const [bank, setBank] = useState('');
-  const [index, setIndex] = useState(0);
+  const [memberIndex, setMemberIndex] = useState(0);
+  const [cardIndex, setCardIndex] = useState(0);
 
   const banks = useMemo(() => {
     const names = new Set();
@@ -22,90 +59,125 @@ export default function CircleCardViewer({ people }) {
     return [...names].sort();
   }, [people]);
 
-  const cards = useMemo(() => {
-    const rows = [];
-    people.forEach((person) => {
-      const name = personLabel(person);
-      (person.cards || []).forEach((card) => {
-        if (bank && card.bank_name !== bank) return;
-        rows.push({ ...card, displayName: name });
-      });
-    });
-    return rows;
-  }, [people, bank]);
+  const members = useMemo(() => (
+    people
+      .map((person) => ({
+        person,
+        cards: (person.cards || []).filter((card) => !bank || card.bank_name === bank),
+      }))
+      .filter((entry) => entry.cards.length > 0)
+  ), [people, bank]);
 
-  const page = Math.min(index, Math.max(0, cards.length - 1));
-  const card = cards[page];
+  const page = Math.min(memberIndex, Math.max(0, members.length - 1));
+  const entry = members[page];
 
   const onBank = (name) => {
     setBank(name);
-    setIndex(0);
+    setMemberIndex(0);
+    setCardIndex(0);
+  };
+
+  const goMember = (delta) => {
+    setMemberIndex(Math.max(0, Math.min(members.length - 1, page + delta)));
+    setCardIndex(0);
   };
 
   if (!people.length) {
     return (
-      <View style={styles.empty}>
+      <View style={styles.pad}>
         <EmptyState message="No one in your circle is sharing a card yet." />
       </View>
     );
   }
 
+  const cardNow = entry ? entry.cards[Math.min(cardIndex, entry.cards.length - 1)] : null;
+  const label = entry ? personLabel(entry.person) : '';
+
   return (
     <View>
       {banks.length > 1 ? (
-        <View style={styles.filters}>
-          <Pressable
-            onPress={() => onBank('')}
-            style={[styles.chip, !bank && styles.chipOn]}
-            accessibilityRole="button"
-            accessibilityLabel="All banks"
-          >
-            <Text style={[styles.chipText, !bank && styles.chipTextOn]}>All</Text>
-          </Pressable>
-          {banks.map((name) => (
-            <Pressable
-              key={name}
-              onPress={() => onBank(name)}
-              style={[styles.chip, bank === name && styles.chipOn]}
-              accessibilityRole="button"
-              accessibilityLabel={name}
-            >
-              <Text style={[styles.chipText, bank === name && styles.chipTextOn]}>{name}</Text>
-            </Pressable>
-          ))}
-        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filters}
+          style={styles.filterScroll}
+        >
+          {['', ...banks].map((name) => {
+            const on = bank === name;
+            return (
+              <Pressable
+                key={name || 'all'}
+                onPress={() => onBank(name)}
+                style={[styles.chip, on && styles.chipOn]}
+                accessibilityRole="button"
+                accessibilityLabel={name || 'All banks'}
+                accessibilityState={{ selected: on }}
+              >
+                <Text style={[styles.chipText, on && styles.chipTextOn]}>{name || 'All'}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
       ) : null}
-      {card ? (
-        <View style={styles.shell}>
-          <VirtualCard
-            bankName={card.bank_name}
-            cardTier={card.card_tier}
-            displayName={card.displayName}
+
+      {entry ? (
+        <View style={styles.member}>
+          <View style={styles.top}>
+            <Avatar tone={AVATARS[page % AVATARS.length]} />
+            <View style={styles.info}>
+              <Text style={styles.name} numberOfLines={1}>{label}</Text>
+              <Text style={styles.shared}>Shared with your circle</Text>
+            </View>
+            <Text style={styles.cardCount}>
+              {entry.cards.length} {entry.cards.length === 1 ? 'card' : 'cards'}
+            </Text>
+          </View>
+          <CardPager
+            items={entry.cards}
+            resetKey={`${entry.person.id}:${bank}`}
+            onIndexChange={setCardIndex}
+            dotsLabel="Card"
+            renderItem={(card) => (
+              <VirtualCard bankName={card.bank_name} cardTier={card.card_tier} displayName={label} />
+            )}
           />
+          <View style={styles.benefit}>
+            <Pressable
+              style={styles.ask}
+              onPress={() => cardNow && onRequest?.(entry.person, cardNow)}
+              accessibilityRole="button"
+              accessibilityLabel={`Request ${cardNow ? `${cardNow.bank_name} ${cardNow.card_tier}` : 'card'} from ${label}`}
+            >
+              <Text style={styles.askText}>Request card</Text>
+            </Pressable>
+          </View>
         </View>
       ) : (
-        <View style={styles.empty}>
-          <EmptyState message="No shared cards for that bank." />
+        <View style={styles.pad}>
+          <EmptyState message="No members have a card from this bank." />
         </View>
       )}
-      {cards.length > 1 ? (
+
+      {members.length > 1 ? (
         <View style={styles.controls}>
           <Pressable
-            style={[styles.arrow, page === 0 && styles.arrowOff]}
-            onPress={() => setIndex((current) => Math.max(0, current - 1))}
+            style={[styles.nav, page === 0 && styles.navHidden]}
+            onPress={() => goMember(-1)}
             disabled={page === 0}
-            accessibilityLabel="Previous card"
+            accessibilityRole="button"
+            accessibilityLabel="Previous circle member"
           >
-            <Text style={styles.arrowText}>‹</Text>
+            <Chevron direction="left" />
           </Pressable>
-          <Text style={styles.counter}>{page + 1} / {cards.length}</Text>
+          <Text style={styles.counter}>Member {page + 1} of {members.length}</Text>
           <Pressable
-            style={[styles.arrow, page >= cards.length - 1 && styles.arrowOff]}
-            onPress={() => setIndex((current) => Math.min(cards.length - 1, current + 1))}
-            disabled={page >= cards.length - 1}
-            accessibilityLabel="Next card"
+            style={[styles.nav, page >= members.length - 1 && styles.navHidden]}
+            onPress={() => goMember(1)}
+            disabled={page >= members.length - 1}
+            accessibilityRole="button"
+            accessibilityLabel="Next circle member"
           >
-            <Text style={styles.arrowText}>›</Text>
+            <Chevron direction="right" />
           </Pressable>
         </View>
       ) : null}
@@ -114,78 +186,114 @@ export default function CircleCardViewer({ people }) {
 }
 
 const styles = StyleSheet.create({
+  pad: {
+    paddingHorizontal: theme.layout.screenPadding,
+  },
+  filterScroll: {
+    flexGrow: 0,
+  },
   filters: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.spacing.sm,
+    gap: 7,
     paddingHorizontal: theme.layout.screenPadding,
-    marginBottom: theme.spacing.md,
+    paddingBottom: 14,
   },
   chip: {
-    backgroundColor: theme.colors.bg3,
-    borderRadius: theme.radius.pill,
-    borderWidth: 0.5,
+    borderWidth: 1,
     borderColor: theme.colors.border2,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
+    borderRadius: 20,
+    backgroundColor: theme.colors.bg3,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
   },
   chipOn: {
-    backgroundColor: theme.colors.greenDim,
     borderColor: theme.colors.green,
+    backgroundColor: theme.colors.greenDim,
   },
   chipText: {
-    fontFamily: theme.fonts.bodyMedium,
-    fontSize: theme.fontSize.body,
+    fontFamily: theme.fonts.body,
+    fontSize: 12,
     color: theme.colors.text2,
   },
   chipTextOn: {
     color: theme.colors.green,
   },
-  empty: {
-    paddingHorizontal: theme.layout.screenPadding,
-    marginBottom: theme.spacing.lg,
-  },
-  shell: {
+  member: {
     marginHorizontal: theme.layout.screenPadding,
-    backgroundColor: theme.colors.bg2,
-    borderWidth: 0.5,
+    padding: 13,
+    borderRadius: 17,
+    borderWidth: 1,
     borderColor: theme.colors.border,
-    borderRadius: theme.radius.card,
-    padding: theme.spacing.lg,
-    marginBottom: theme.spacing.sm,
+    backgroundColor: theme.colors.bg2,
+  },
+  top: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    marginBottom: 12,
+  },
+  avatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  info: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  name: {
+    fontFamily: theme.fonts.bodyMedium,
+    fontSize: 13,
+    color: theme.colors.text,
+  },
+  shared: {
+    fontFamily: theme.fonts.body,
+    fontSize: 10,
+    color: theme.colors.text2,
+  },
+  cardCount: {
+    fontFamily: theme.fonts.body,
+    fontSize: 11,
+    color: theme.colors.text2,
+  },
+  benefit: {
+    paddingTop: 12,
+    paddingHorizontal: 1,
+    paddingBottom: 1,
+  },
+  ask: {
+    backgroundColor: theme.colors.green,
+    borderRadius: 9,
+    paddingVertical: 11,
+    alignItems: 'center',
+  },
+  askText: {
+    fontFamily: theme.fonts.bodyMedium,
+    fontSize: 12,
+    color: '#04110B',
   },
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: theme.spacing.lg,
-    marginBottom: theme.spacing.lg,
+    gap: 8,
+    paddingTop: 11,
+    paddingBottom: 5,
   },
-  arrow: {
-    width: theme.layout.carouselArrow,
-    height: theme.layout.carouselArrow,
-    borderRadius: theme.radius.control,
-    backgroundColor: theme.colors.bg3,
-    borderWidth: 0.5,
-    borderColor: theme.colors.border2,
-    alignItems: 'center',
-    justifyContent: 'center',
+  nav: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
   },
-  arrowOff: {
-    opacity: 0.35,
-  },
-  arrowText: {
-    fontFamily: theme.fonts.display,
-    fontSize: theme.fontSize.carouselArrow,
-    color: theme.colors.text,
-    lineHeight: theme.fontSize.carouselArrow,
-    marginTop: -2,
+  navHidden: {
+    opacity: 0,
   },
   counter: {
-    fontFamily: theme.fonts.bodyMedium,
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text2,
-    minWidth: theme.layout.carouselCounterMinWidth,
-    textAlign: 'center',
+    fontFamily: theme.fonts.body,
+    fontSize: 10,
+    color: theme.colors.text3,
   },
 });

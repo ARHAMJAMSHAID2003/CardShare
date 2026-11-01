@@ -12,7 +12,7 @@ export function BackIcon() {
   );
 }
 
-export default function TopBar({ title, displayName, onBack, onAccount, actionLabel, onAction }) {
+export default function TopBar({ title, displayName, onBack, onAccount, actionLabel, onAction, right, compactTitle }) {
   const topInset = useTopInset();
   return (
     <View style={[styles.bar, { paddingTop: topInset }]}>
@@ -21,10 +21,11 @@ export default function TopBar({ title, displayName, onBack, onAccount, actionLa
           <BackIcon />
         </Pressable>
       ) : null}
-      <Text style={styles.title} numberOfLines={1}>
+      <Text style={[styles.title, compactTitle && styles.compactTitle]} numberOfLines={1}>
         {title}
       </Text>
       <View style={styles.right}>
+        {right || null}
         {onAction ? (
           <Pressable onPress={onAction} style={styles.actionBtn} accessibilityRole="button" accessibilityLabel={actionLabel}>
             <Text style={styles.actionText}>{actionLabel}</Text>
@@ -40,7 +41,7 @@ export default function TopBar({ title, displayName, onBack, onAccount, actionLa
           >
             <Text style={styles.avatarText}>{initialsFor(displayName)}</Text>
           </Pressable>
-        ) : !onAction ? (
+        ) : !onAction && !right ? (
           <View style={styles.spacer} />
         ) : null}
       </View>
@@ -64,6 +65,9 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.title,
     color: theme.colors.text,
     letterSpacing: -0.5,
+  },
+  compactTitle: {
+    fontSize: 20,
   },
   right: {
     flexDirection: 'row',

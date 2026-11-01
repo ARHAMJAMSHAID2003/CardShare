@@ -30,6 +30,10 @@ export function getCards(sessionId, userId, options = {}) {
   return apiRequest('/api/cards', { sessionId, userId, signal: options.signal });
 }
 
+export function getCardStats(sessionId, userId, options = {}) {
+  return apiRequest('/api/cards/stats', { sessionId, userId, signal: options.signal });
+}
+
 export function addCard(sessionId, userId, bankName, cardTier) {
   return apiRequest('/api/cards', {
     method: 'POST',

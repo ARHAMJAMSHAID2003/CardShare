@@ -22,6 +22,21 @@ const getProfile = async (req, res) => {
   }
 };
 
+// GET /api/profile/stats
+// { holder: { earned_all, earned_month, orders_all, orders_month },
+//   requester: { saved_all, saved_month, orders_all, orders_month } }
+const getStats = async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      'SELECT get_user_stats($1) AS result',
+      [req.user.id]
+    );
+    res.json(rows[0].result);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
 // POST /api/profile/find-by-phone
 // Lookup another user by phone before sending a circle invite
 const findUserByPhone = async (req, res) => {
@@ -51,4 +66,4 @@ const findUserByPhone = async (req, res) => {
   }
 };
 
-module.exports = { getProfile, findUserByPhone };
+module.exports = { getProfile, getStats, findUserByPhone };

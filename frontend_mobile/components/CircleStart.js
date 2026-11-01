@@ -1,51 +1,30 @@
 import { StyleSheet, Text } from 'react-native';
-import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import theme from '../constants/theme';
-import HomePanel from './HomePanel';
-
-const PAYOFF = 'Add someone you trust. Their card can lower the price. Yours can earn when you shop for them.';
+import { CircleEmpty } from './HomeParts';
 
 function personName(member) {
   return member.contact_name || member.display_name || 'Someone';
 }
 
-function CircleMark() {
-  const color = theme.colors.green;
-  return (
-    <Svg width={168} height={72} viewBox="0 0 168 72" fill="none">
-      <Circle cx="24" cy="24" r="9" stroke={color} strokeWidth="1.8" />
-      <Path d="M8 58c1.4-10 7-15 16-15s14.6 5 16 15" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
-      <Path d="M46 36h18" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
-      <Rect x="64" y="22" width="40" height="28" rx="5" stroke={color} strokeWidth="1.8" />
-      <Path d="M72 33h24" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
-      <Path d="M72 40h14" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
-      <Path d="M104 36h18" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
-      <Circle cx="144" cy="24" r="9" stroke={color} strokeWidth="1.8" />
-      <Path d="M128 58c1.4-10 7-15 16-15s14.6 5 16 15" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
-    </Svg>
-  );
-}
-
+// What a requester with no one in the circle yet sees. It also covers an
+// invite that was sent or received but not accepted.
 export default function CircleStart({ members, onAdd, onOpenCircle }) {
   const received = members.filter((member) => member.c_status === 'pending' && !member.is_sender);
   const sent = members.filter((member) => member.c_status === 'pending' && member.is_sender);
   const invited = received.length > 0;
 
-  let title = 'Save on an order, or earn when you place one.';
-  let body = PAYOFF;
+  let title = 'Your circle is empty';
+  let text = 'Add someone you trust. Once they accept, the cards they share show up here.';
   let button = 'Add someone';
   let onPress = onAdd;
-  let emphasize = false;
 
   if (invited) {
     title = received.length === 1 ? `${personName(received[0])} invited you` : 'You have invites';
-    body = PAYOFF;
     button = received.length === 1 ? 'See invite' : 'See invites';
     onPress = onOpenCircle;
-    emphasize = true;
   } else if (sent.length) {
     title = 'Invite sent';
-    body = '';
+    text = '';
     button = 'Add someone else';
   }
 
@@ -63,11 +42,10 @@ export default function CircleStart({ members, onAdd, onOpenCircle }) {
   );
 
   return (
-    <HomePanel
-      mark={<CircleMark />}
+    <CircleEmpty
+      icon="circle"
       title={title}
-      emphasize={emphasize}
-      body={body}
+      text={text}
       extra={names}
       button={button}
       onPress={onPress}
@@ -78,9 +56,9 @@ export default function CircleStart({ members, onAdd, onOpenCircle }) {
 const styles = StyleSheet.create({
   person: {
     fontFamily: theme.fonts.bodyMedium,
-    fontSize: theme.fontSize.input,
-    lineHeight: 24,
+    fontSize: theme.fontSize.body,
+    lineHeight: 20,
     color: theme.colors.text,
-    marginTop: theme.spacing.sm,
+    textAlign: 'center',
   },
 });

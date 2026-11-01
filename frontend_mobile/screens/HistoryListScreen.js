@@ -12,8 +12,8 @@ import theme from '../constants/theme';
 import { useSession } from '../context/SessionContext';
 import { openScreen } from '../navigation/openScreen';
 import { useScreenQuery } from '../queries/useScreenQuery';
-import { asList, formatDate, formatPkr } from '../utils/format';
-import { txnStatusLabel, txnStatusVariant } from '../utils/orderRules';
+import { asList } from '../utils/format';
+import { historyRow } from '../utils/history';
 
 export default function HistoryListScreen() {
   const navigation = useNavigation();
@@ -34,26 +34,27 @@ export default function HistoryListScreen() {
 
   return (
     <ScreenShell onRefresh={() => list.refetch()} refreshing={list.refreshing}>
-      <TopBar title={holder ? 'Orders on your cards' : 'Orders you requested'} onBack={() => navigation.goBack()} />
+      <TopBar title={holder ? 'Past orders' : 'Past requests'} onBack={() => navigation.goBack()} />
       {list.showLoading ? (
         <LoadingState />
       ) : items.length === 0 && !error ? (
         <View style={{ paddingHorizontal: theme.layout.screenPadding }}>
-          <EmptyState message="No orders yet." />
+          <EmptyState message="Nothing here yet." />
         </View>
       ) : (
-        items.map((txn) => (
-          <ListCard
-            key={txn.id}
-            title={txn.merchant}
-            subtitle={holder
-              ? `${txn.requester_name || 'Someone'} · ${formatPkr(txn.order_amount)} · ${formatDate(txn.created_at)}`
-              : `${txn.card_holder_name || 'Card holder'} · ${formatPkr(txn.order_amount)} · ${formatDate(txn.created_at)}`}
-            badgeLabel={txnStatusLabel(txn.txn_status, role)}
-            badgeVariant={txnStatusVariant(txn.txn_status)}
-            onPress={() => openScreen(navigation, 'transaction-detail', { txnId: txn.id, role })}
-          />
-        ))
+        items.map((txn) => {
+          const row = historyRow(txn, role);
+          return (
+            <ListCard
+              key={row.id}
+              title={row.title}
+              subtitle={row.subtitle}
+              badgeLabel={row.badgeLabel}
+              badgeVariant={row.badgeVariant}
+              onPress={() => openScreen(navigation, row.nav.screen, row.nav.params)}
+            />
+          );
+        })
       )}
       <View style={{ paddingHorizontal: theme.layout.screenPadding }}>
         <ErrorBanner message={error} onRetry={() => list.refetch()} />

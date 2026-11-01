@@ -1,29 +1,30 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, Path } from 'react-native-svg';
-import { useQuery } from '@tanstack/react-query';
+import { Animated, Easing, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import theme from '../constants/theme';
 import { useSession } from '../context/SessionContext';
 import { useTopInset } from '../hooks/useTopInset';
-import { loadHistory } from '../queries/history';
 import { formatDisplayName } from '../utils/initials';
 import ConfirmDialog from './ConfirmDialog';
+import { PanelIcon } from './NavIcons';
 
-function MenuIcon({ name, color, size = 22 }) {
+const MUTED = '#8A9099';
+
+function MenuIcon({ name, color = MUTED, size = 21 }) {
   if (name === 'circle') {
     return (
       <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
         <Circle cx="9" cy="8" r="3" stroke={color} strokeWidth="1.8" />
-        <Path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
-        <Path d="M16 6c1.7 0 3 1.3 3 3s-1.3 3-3 3M18 17c1.7.6 3 2.3 3 4" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+        <Circle cx="17" cy="9" r="2.4" stroke={color} strokeWidth="1.8" />
+        <Path d="M3.5 19c.5-3 2.5-4.5 5.5-4.5s5 1.5 5.5 4.5M15 15c2.8-.2 4.5 1.1 5 3.5" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
       </Svg>
     );
   }
   if (name === 'cards') {
     return (
       <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-        <Path d="M3 8.5h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-10z" stroke={color} strokeWidth="1.8" />
-        <Path d="M7 8.5V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2" stroke={color} strokeWidth="1.8" />
+        <Rect x="3" y="5" width="18" height="14" rx="3" stroke={color} strokeWidth="1.8" />
+        <Path d="M3 10h18" stroke={color} strokeWidth="1.8" />
       </Svg>
     );
   }
@@ -47,28 +48,39 @@ function MenuIcon({ name, color, size = 22 }) {
     return (
       <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
         <Circle cx="12" cy="12" r="8" stroke={color} strokeWidth="1.8" />
-        <Path d="M12 11v5" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+        <Path d="M12 11v5" stroke={color} strokeWidth="1.8" />
         <Circle cx="12" cy="8" r="1" fill={color} />
       </Svg>
     );
   }
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      <Path d="M16 17l5-5-5-5" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      <Path d="M21 12H9" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+      <Path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+      <Path d="M16 17l5-5-5-5M21 12H9" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
 
+function Item({ icon, label, onPress, last }) {
+  return (
+    <Pressable
+      style={[styles.item, !last && styles.itemDivider]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <MenuIcon name={icon} />
+      <Text style={styles.itemText}>{label}</Text>
+    </Pressable>
+  );
+}
+
 export default function SideMenu({ visible, onClose, onCircle, onCards, onHistory, onHowItWorks, onLoggedOut }) {
-  const { sessionId, user, signOut } = useSession();
+  const { user, signOut } = useSession();
   const topInset = useTopInset();
-  const history = useQuery({
-    queryKey: ['history', user?.id],
-    queryFn: ({ signal, client }) => loadHistory(sessionId, user.id, { signal, client }),
-    enabled: Boolean(sessionId && user?.id),
-  });
+  const { width: windowWidth } = useWindowDimensions();
+  const phoneWidth = Math.min(windowWidth, theme.layout.phoneWidth);
+  const drawerWidth = Math.min(310, Math.round(phoneWidth * 0.84));
   const progress = useRef(new Animated.Value(0)).current;
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [working, setWorking] = useState(false);
@@ -79,7 +91,7 @@ export default function SideMenu({ visible, onClose, onCircle, onCards, onHistor
     progress.setValue(0);
     const animation = Animated.timing(progress, {
       toValue: 1,
-      duration: 160,
+      duration: 240,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     });
@@ -102,16 +114,9 @@ export default function SideMenu({ visible, onClose, onCircle, onCards, onHistor
 
   if (!visible) return null;
 
-  const finishedCount = (history.data?.asRequester?.length || 0) + (history.data?.asHolder?.length || 0);
-  const showHistory = history.isError || Boolean(history.data?.error) || finishedCount > 0;
-  const opacity = progress;
-  const translateY = progress.interpolate({
+  const translateX = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: [-8, 0],
-  });
-  const scale = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.96, 1],
+    outputRange: [-drawerWidth - 10, 0],
   });
 
   return (
@@ -121,41 +126,46 @@ export default function SideMenu({ visible, onClose, onCircle, onCards, onHistor
         <Animated.View
           style={[
             styles.card,
-            { marginTop: topInset + 52, opacity, transform: [{ translateY }, { scale }] },
+            { width: drawerWidth, paddingTop: topInset + 6, transform: [{ translateX }] },
           ]}
         >
-          <View style={styles.nameRow}>
-            <MenuIcon name="profile" color={theme.colors.text} size={22} />
-            <Text style={styles.name} numberOfLines={1}>{formatDisplayName(user?.display_name) || 'Account'}</Text>
-          </View>
-          <Pressable style={styles.row} onPress={onCircle} accessibilityRole="button" accessibilityLabel="Circle">
-            <MenuIcon name="circle" color={theme.colors.text2} size={22} />
-            <Text style={styles.rowText}>Circle</Text>
-          </Pressable>
-          <Pressable style={styles.row} onPress={onCards} accessibilityRole="button" accessibilityLabel="My cards">
-            <MenuIcon name="cards" color={theme.colors.text2} size={22} />
-            <Text style={styles.rowText}>My cards</Text>
-          </Pressable>
-          {showHistory ? (
-            <Pressable style={styles.row} onPress={onHistory} accessibilityRole="button" accessibilityLabel="History">
-              <MenuIcon name="history" color={theme.colors.text2} size={22} />
-              <Text style={styles.rowText}>History</Text>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+            <View style={styles.who}>
+              <View style={styles.avatar}>
+                <MenuIcon name="profile" color={theme.colors.green} size={23} />
+              </View>
+              <Text style={styles.name} numberOfLines={1}>{formatDisplayName(user?.display_name) || 'Account'}</Text>
+              <Pressable
+                onPress={onClose}
+                style={styles.close}
+                accessibilityRole="button"
+                accessibilityLabel="Close menu"
+              >
+                <PanelIcon color={theme.colors.text} />
+              </Pressable>
+            </View>
+
+            <Text style={styles.label}>ACCOUNT</Text>
+            <Item icon="cards" label="Manage Cards" onPress={onCards} />
+            <Item icon="circle" label="Trusted Circle" onPress={onCircle} last />
+
+            <Text style={styles.label}>ACTIVITY</Text>
+            <Item icon="history" label="History" onPress={onHistory} last />
+
+            <Text style={styles.label}>SUPPORT</Text>
+            <Item icon="guide" label="How it works" onPress={onHowItWorks} last />
+
+            <Pressable
+              style={styles.out}
+              onPress={() => setConfirmLogout(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Log out"
+            >
+              <MenuIcon name="logout" color={theme.colors.red} />
+              <Text style={styles.outText}>Log out</Text>
             </Pressable>
-          ) : null}
-          <Pressable style={styles.row} onPress={onHowItWorks} accessibilityRole="button" accessibilityLabel="How it works">
-            <MenuIcon name="guide" color={theme.colors.text2} size={22} />
-            <Text style={styles.rowText}>How it works</Text>
-          </Pressable>
-          <Pressable
-            style={styles.row}
-            onPress={() => setConfirmLogout(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Log out"
-          >
-            <MenuIcon name="logout" color={theme.colors.red} size={22} />
-            <Text style={styles.logoutText}>Log out</Text>
-          </Pressable>
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+          </ScrollView>
         </Animated.View>
       </View>
       <ConfirmDialog
@@ -184,8 +194,8 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     maxWidth: theme.layout.phoneWidth,
-    alignItems: 'flex-end',
-    backgroundColor: theme.colors.overlay,
+    alignItems: 'flex-start',
+    backgroundColor: 'rgba(0, 0, 0, 0.62)',
   },
   dismiss: {
     position: 'absolute',
@@ -195,44 +205,85 @@ const styles = StyleSheet.create({
     left: 0,
   },
   card: {
-    width: 236,
-    marginRight: theme.layout.screenPadding,
+    height: '100%',
     backgroundColor: theme.colors.bg2,
-    borderRadius: theme.radius.card,
-    borderWidth: 0.5,
+    borderRightWidth: 1,
     borderColor: theme.colors.border2,
-    paddingTop: theme.spacing.lg,
-    paddingHorizontal: theme.spacing.lg,
-    paddingBottom: theme.spacing.sm,
-    ...theme.shadows.card,
+    borderTopRightRadius: 20,
+    borderBottomRightRadius: 20,
+    paddingHorizontal: 20,
   },
-  nameRow: {
+  content: {
+    paddingBottom: 24,
+  },
+  who: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.sm,
-    marginBottom: theme.spacing.md,
+    gap: 12,
+    marginBottom: 22,
+    paddingBottom: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  avatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.bg3,
+    borderWidth: 1,
+    borderColor: theme.colors.border2,
   },
   name: {
     flex: 1,
+    minWidth: 0,
     fontFamily: theme.fonts.display,
-    fontSize: theme.fontSize.title,
+    fontSize: 20,
     color: theme.colors.text,
   },
-  row: {
+  close: {
+    width: 38,
+    height: 38,
+    marginRight: -6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  label: {
+    fontFamily: theme.fonts.bodyMedium,
+    fontSize: 10,
+    letterSpacing: 1.3,
+    color: theme.colors.text3,
+    paddingTop: 18,
+    paddingBottom: 4,
+  },
+  item: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.sm,
-    paddingVertical: theme.spacing.lg,
-    borderTopWidth: 0.5,
-    borderTopColor: theme.colors.border,
+    gap: 8,
+    paddingVertical: 15,
+    paddingHorizontal: 4,
   },
-  rowText: {
+  itemDivider: {
+    borderBottomWidth: 0.5,
+    borderBottomColor: theme.colors.border,
+  },
+  itemText: {
     flex: 1,
     fontFamily: theme.fonts.bodyMedium,
     fontSize: theme.fontSize.input,
     color: theme.colors.text2,
   },
-  logoutText: {
+  out: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 14,
+    paddingVertical: 16,
+    borderTopWidth: 0.5,
+    borderTopColor: theme.colors.border,
+  },
+  outText: {
     flex: 1,
     fontFamily: theme.fonts.bodyMedium,
     fontSize: theme.fontSize.input,
@@ -242,6 +293,6 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.body,
     fontSize: theme.fontSize.small,
     color: theme.colors.red,
-    marginBottom: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
   },
 });

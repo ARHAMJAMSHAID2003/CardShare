@@ -1,88 +1,110 @@
 import { asList, formatPkr } from './format';
-import { REQUEST_STATUS_LABELS, TXN_STATUS_LABELS, requestStatusVariant, txnStatusVariant } from './orderRules';
+import { amountOwed } from './settlement';
 
+// Whose move it is. These rows sit under "Needs you" and light the nav dot.
 export function isYourTurn(item) {
   if (item.role === 'holding') {
     return item.status === 'pending' || item.status === 'accepted' || item.status === 'unpaid';
   }
-  if (item.role === 'asked') return item.status === 'proof_submitted';
+  if (item.role === 'asked') return item.status === 'proof_submitted' || item.status === 'unpaid';
   return false;
 }
 
-function askedItem(item) {
-  return {
-    key: `asked-${item.id}`,
-    role: 'asked',
-    status: item.rq_status,
-    updatedAt: item.updated_at || item.created_at,
-    title: item.merchant,
-    personName: item.card_holder_name || 'them',
-    amount: item.order_amount,
-    bankName: item.bank_name || '',
-    subtitle: `You asked ${item.card_holder_name || 'them'} · ${formatPkr(item.order_amount)}`,
-    badge: REQUEST_STATUS_LABELS[item.rq_status] || item.rq_status,
-    badgeVariant: requestStatusVariant(item.rq_status),
-    id: item.id,
-    unreadCount: Number(item.unread_count) || 0,
-    nav: { screen: 'request-detail', params: { requestId: item.id } },
-  };
+export function firstName(name) {
+  return String(name || '').trim().split(/\s+/)[0] || '';
 }
 
-function holdingItem(item, status) {
+// Row badge: text and colour for each step, from the point of view of the viewer.
+function badgeFor(role, status, first) {
+  if (role === 'asked') {
+    if (status === 'pending') return { label: 'Awaiting accept', variant: 'blue' };
+    if (status === 'accepted') return { label: 'Buying it', variant: 'blue' };
+    if (status === 'proof_submitted') return { label: 'Review proof', variant: 'amber' };
+    if (status === 'unpaid') return { label: first ? `Pay ${first}` : 'Pay', variant: 'amber' };
+  } else {
+    if (status === 'pending') return { label: 'Accept?', variant: 'amber' };
+    if (status === 'accepted') return { label: 'Upload proof', variant: 'amber' };
+    if (status === 'proof_submitted') return { label: 'Under review', variant: 'blue' };
+    if (status === 'unpaid') return { label: 'Mark received', variant: 'amber' };
+  }
+  return { label: '', variant: 'gray' };
+}
+
+function subtitleFor(role, status, first, amount, owed) {
+  const money = owed != null && (status === 'proof_submitted' || status === 'unpaid');
+  if (money) {
+    return role === 'asked'
+      ? `${first} · you pay ${formatPkr(owed)}`
+      : `${first} · you receive ${formatPkr(owed)}`;
+  }
+  return `${first} · ${formatPkr(amount)}`;
+}
+
+function build(item, { role, status, personName, kind }) {
+  const first = firstName(personName) || (role === 'asked' ? 'them' : 'Someone');
+  const owed = amountOwed(item);
+  const badge = badgeFor(role, status, first);
   return {
-    key: `hold-${item.id}`,
-    role: 'holding',
+    key: `${kind}-${item.id}`,
+    role,
     status,
     updatedAt: item.updated_at || item.created_at,
     title: item.merchant,
-    personName: item.requester_name || 'Someone',
+    personName: personName || first,
+    firstName: first,
     amount: item.order_amount,
+    owed,
     bankName: item.bank_name || '',
-    subtitle: `${item.requester_name || 'Someone'} · ${formatPkr(item.order_amount)}`,
-    badge: REQUEST_STATUS_LABELS[status] || status,
-    badgeVariant: requestStatusVariant(status),
+    cardTier: item.card_tier || '',
+    subtitle: subtitleFor(role, status, first, item.order_amount, owed),
+    badge: badge.label,
+    badgeVariant: badge.variant,
     id: item.id,
     unreadCount: Number(item.unread_count) || 0,
-    nav: { screen: 'order-detail', params: { orderId: item.id } },
+    nav: kind === 'txn-asked'
+      ? { screen: 'order', params: { txnId: item.id, role: 'requester' } }
+      : kind === 'txn-hold'
+        ? { screen: 'order', params: { txnId: item.id, role: 'holder' } }
+        : kind === 'asked'
+          ? { screen: 'order', params: { requestId: item.id } }
+          : { screen: 'order', params: { orderId: item.id } },
   };
+}
+
+function askedItem(item) {
+  return build(item, {
+    role: 'asked',
+    status: item.rq_status,
+    personName: item.card_holder_name,
+    kind: 'asked',
+  });
+}
+
+function holdingItem(item, status) {
+  return build(item, {
+    role: 'holding',
+    status,
+    personName: item.requester_name,
+    kind: 'hold',
+  });
 }
 
 function unpaidAskedItem(item) {
-  return {
-    key: `unpaid-asked-${item.id}`,
+  return build(item, {
     role: 'asked',
     status: 'unpaid',
-    updatedAt: item.updated_at || item.created_at,
-    title: item.merchant,
-    personName: item.card_holder_name || 'them',
-    amount: item.order_amount,
-    bankName: item.bank_name || '',
-    subtitle: `You asked ${item.card_holder_name || 'them'} · ${formatPkr(item.order_amount)}`,
-    badge: TXN_STATUS_LABELS.unpaid,
-    badgeVariant: txnStatusVariant('unpaid'),
-    id: item.id,
-    unreadCount: 0,
-    nav: { screen: 'transaction-detail', params: { txnId: item.id, role: 'requester' } },
-  };
+    personName: item.card_holder_name,
+    kind: 'txn-asked',
+  });
 }
 
 function unpaidHoldingItem(item) {
-  return {
-    key: `unpaid-hold-${item.id}`,
+  return build(item, {
     role: 'holding',
     status: 'unpaid',
-    updatedAt: item.updated_at || item.created_at,
-    title: item.merchant,
-    personName: item.requester_name || 'Someone',
-    amount: item.order_amount,
-    bankName: item.bank_name || '',
-    subtitle: `${item.requester_name || 'Someone'} · ${formatPkr(item.order_amount)}`,
-    badge: TXN_STATUS_LABELS.unpaid,
-    badgeVariant: txnStatusVariant('unpaid'),
-    id: item.id,
-    unreadCount: 0,
-    nav: { screen: 'transaction-detail', params: { txnId: item.id, role: 'holder' } },
-  };
+    personName: item.requester_name,
+    kind: 'txn-hold',
+  });
 }
 
 export function buildRequestItems(sent, incoming, holding, unpaidAsked, unpaidHolding) {

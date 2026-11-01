@@ -86,6 +86,20 @@ const getCards = async (req, res) => {
   }
 };
 
+// GET /api/cards/stats
+// One row per owned card: card_id, earned, orders, avg_discount (percent)
+const getCardStats = async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      'SELECT get_card_stats($1) AS result',
+      [req.user.id]
+    );
+    res.json(rows[0].result ?? []);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
 // PATCH /api/cards/:id/sharing
 // Toggle allow_sharing between 0 and 1
 const toggleCardSharing = async (req, res) => {
@@ -125,6 +139,7 @@ const deleteCard = async (req, res) => {
 module.exports = {
   addCard,
   getCards,
+  getCardStats,
   toggleCardSharing,
   deleteCard,
   ALLOWED_BANKS,

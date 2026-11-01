@@ -5,6 +5,7 @@ const controller = require('../controllers/cards.controller');
 
 router.post('/', auth, controller.addCard);
 router.get('/', auth, controller.getCards);
+router.get('/stats', auth, controller.getCardStats);
 router.patch('/:id/sharing', auth, controller.toggleCardSharing);
 router.delete('/:id', auth, controller.deleteCard);
 

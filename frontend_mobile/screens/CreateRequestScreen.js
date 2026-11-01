@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { ALLOWED_BANKS, ALLOWED_CARD_TIERS } from '../api/cards';
 import { getCardHolders, getCircle } from '../api/circle';
 import { createRequest } from '../api/requester';
@@ -27,8 +27,11 @@ export default function CreateRequestScreen() {
   const navigation = useNavigation();
   const { sessionId, user } = useSession();
   const showToast = useToast();
-  const [bank, setBank] = useState('');
-  const [tier, setTier] = useState('');
+  // "Request card" on a circle member opens this with that card already chosen.
+  const preset = useRoute().params || {};
+  const [bank, setBank] = useState(preset.bank || '');
+  const [tier, setTier] = useState(preset.tier || '');
+  const [presetActive, setPresetActive] = useState(Boolean(preset.holderId));
   const [selectedIds, setSelectedIds] = useState([]);
   const [appliedKey, setAppliedKey] = useState('');
   const [liveHolderIds, setLiveHolderIds] = useState([]);
@@ -64,9 +67,10 @@ export default function CreateRequestScreen() {
     }
     if (holdersQuery.data === undefined) return;
     if (appliedKey === matchKey) return;
-    setSelectedIds(holdersQuery.data.map((person) => person.id));
+    const onlyThem = presetActive && holdersQuery.data.some((person) => person.id === preset.holderId);
+    setSelectedIds(onlyThem ? [preset.holderId] : holdersQuery.data.map((person) => person.id));
     setAppliedKey(matchKey);
-  }, [matchKey, holdersQuery.data, appliedKey]);
+  }, [matchKey, holdersQuery.data, appliedKey, presetActive, preset.holderId]);
 
   const clearLiveOrder = () => {
     setLiveHolderIds([]);
@@ -83,6 +87,7 @@ export default function CreateRequestScreen() {
   };
 
   const onBank = (value) => {
+    setPresetActive(false);
     setBank(value);
     setSelectedIds([]);
     setAppliedKey('');
@@ -90,6 +95,7 @@ export default function CreateRequestScreen() {
   };
 
   const onTier = (value) => {
+    setPresetActive(false);
     setTier(value);
     setSelectedIds([]);
     setAppliedKey('');
@@ -151,7 +157,7 @@ export default function CreateRequestScreen() {
       const created = await createRequest(sessionId, user.id, {
         holders: chosen.map((person) => ({
           card_holder_id: person.id,
-          card_id: person.card_id,
+          card_id: presetActive && person.id === preset.holderId && preset.cardId ? preset.cardId : person.card_id,
         })),
         merchant: merchant.trim(),
         delivery_address: address.trim(),

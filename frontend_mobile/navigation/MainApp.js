@@ -7,7 +7,6 @@ import BottomNav from '../components/BottomNav';
 import SideMenu from '../components/SideMenu';
 import AddCardScreen from '../screens/AddCardScreen';
 import AddCircleScreen from '../screens/AddCircleScreen';
-import CardDetailScreen from '../screens/CardDetailScreen';
 import ChatScreen from '../screens/ChatScreen';
 import CircleScreen from '../screens/CircleScreen';
 import CreateRequestScreen from '../screens/CreateRequestScreen';
@@ -16,11 +15,9 @@ import HistoryListScreen from '../screens/HistoryListScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import HomeScreen from '../screens/HomeScreen';
 import HowItWorksScreen from '../screens/HowItWorksScreen';
-import OrderDetailHolderScreen from '../screens/OrderDetailHolderScreen';
-import ProfileScreen from '../screens/ProfileScreen';
-import RequestDetailRequesterScreen from '../screens/RequestDetailRequesterScreen';
+import OrderScreen from '../screens/OrderScreen';
 import RequestsScreen from '../screens/RequestsScreen';
-import TransactionDetailScreen from '../screens/TransactionDetailScreen';
+import SendProofScreen from '../screens/SendProofScreen';
 import theme from '../constants/theme';
 import { RoleModeProvider } from '../context/RoleMode';
 import { AppActionsProvider } from './AppActions';
@@ -113,18 +110,15 @@ function MainAppShell({ onLoggedOut }) {
           <Stack.Navigator screenOptions={stackOptions}>
             <Stack.Screen name="Tabs" component={MainTabs} />
             <Stack.Screen name="add-card" component={AddCardScreen} getId={screenId} />
-            <Stack.Screen name="card-detail" component={CardDetailScreen} getId={screenId} />
             <Stack.Screen name="add-circle" component={AddCircleScreen} getId={screenId} />
             <Stack.Screen name="circle" component={CircleScreen} getId={screenId} />
             <Stack.Screen name="my-cards" component={MyCardsScreen} getId={screenId} />
             <Stack.Screen name="create-request" component={CreateRequestScreen} getId={screenId} />
             <Stack.Screen name="history" component={HistoryScreen} getId={screenId} />
             <Stack.Screen name="history-list" component={HistoryListScreen} getId={screenId} />
-            <Stack.Screen name="order-detail" component={OrderDetailHolderScreen} getId={screenId} />
-            <Stack.Screen name="request-detail" component={RequestDetailRequesterScreen} getId={screenId} />
-            <Stack.Screen name="transaction-detail" component={TransactionDetailScreen} getId={screenId} />
+            <Stack.Screen name="order" component={OrderScreen} getId={screenId} />
+            <Stack.Screen name="send-proof" component={SendProofScreen} getId={screenId} />
             <Stack.Screen name="chat" component={ChatScreen} getId={screenId} />
-            <Stack.Screen name="profile" component={ProfileScreen} getId={screenId} />
             <Stack.Screen name="guide" component={GuideScreen} getId={screenId} />
           </Stack.Navigator>
         </NavigationContainer>

@@ -2,11 +2,11 @@ import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet } from 'react-native';
 import theme from '../constants/theme';
 
-const TRACK_WIDTH = 48;
-const THUMB_SIZE = 22;
-const THUMB_TRAVEL = TRACK_WIDTH - THUMB_SIZE - 4;
-
-export default function SharingSwitch({ on }) {
+export default function SharingSwitch({ on, small }) {
+  const trackWidth = small ? 43 : 48;
+  const trackHeight = small ? 24 : 26;
+  const thumb = small ? 20 : 22;
+  const travel = trackWidth - thumb - 4;
   const progress = useRef(new Animated.Value(on ? 1 : 0)).current;
 
   useEffect(() => {
@@ -23,7 +23,7 @@ export default function SharingSwitch({ on }) {
 
   const translateX = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, THUMB_TRAVEL],
+    outputRange: [0, travel],
   });
   const trackColor = progress.interpolate({
     inputRange: [0, 1],
@@ -31,24 +31,28 @@ export default function SharingSwitch({ on }) {
   });
 
   return (
-    <Animated.View style={[styles.track, { backgroundColor: trackColor }]}>
-      <Animated.View style={[styles.thumb, { transform: [{ translateX }] }]} />
+    <Animated.View
+      style={[
+        styles.track,
+        { width: trackWidth, height: trackHeight, borderRadius: trackHeight / 2, backgroundColor: trackColor },
+      ]}
+    >
+      <Animated.View
+        style={[
+          styles.thumb,
+          { width: thumb, height: thumb, borderRadius: thumb / 2, transform: [{ translateX }] },
+        ]}
+      />
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   track: {
-    width: TRACK_WIDTH,
-    height: 26,
-    borderRadius: 13,
     padding: 2,
     justifyContent: 'center',
   },
   thumb: {
-    width: THUMB_SIZE,
-    height: THUMB_SIZE,
-    borderRadius: THUMB_SIZE / 2,
     backgroundColor: theme.colors.white,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },

@@ -5,6 +5,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { cancelCircleInvite, getCircle, respondToCircleInvite, removeFromCircle } from '../api/circle';
 import EmptyState from '../components/EmptyState';
 import ErrorBanner from '../components/ErrorBanner';
+import { CircleEmpty } from '../components/HomeParts';
 import ListCard from '../components/ListCard';
 import LoadingState from '../components/LoadingState';
 import ScreenShell from '../components/ScreenShell';
@@ -204,9 +205,18 @@ export default function CircleScreen() {
       {circle.showLoading ? (
         <LoadingState />
       ) : visible.length === 0 && !error ? (
-        <View style={styles.pad}>
-          <EmptyState message={filter === 'pending' ? 'No pending invites.' : 'No one in your circle yet. Add someone you trust.'} />
-        </View>
+        filter === 'pending' ? (
+          <View style={styles.pad}>
+            <EmptyState message="No pending invites." />
+          </View>
+        ) : (
+          <CircleEmpty
+            title="No one in your circle yet"
+            text="Add someone you trust by their phone number. Invites you send or receive show up here."
+            button="Add someone"
+            onPress={() => openScreen(navigation, 'add-circle')}
+          />
+        )
       ) : (
         visible.map((member) => {
           const badge = circleBadge(member);

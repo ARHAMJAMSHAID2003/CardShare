@@ -1,74 +1,94 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import theme from '../constants/theme';
-import { bannerText } from '../utils/orderBanner';
+import { bannerParts, bannerText } from '../utils/orderBanner';
 
-export default function ActiveOrderBanner({ items, onOpen, onSeeAll }) {
+// "See all" sits above the banner, on the right. The banner is the first item.
+export default function ActiveOrderBanner({ items, mode, onOpen, onSeeAll }) {
   if (!items.length) return null;
   const first = items[0];
   const extra = items.length - 1;
+  const noun = mode === 'holder' ? 'orders' : 'requests';
+  const { head, detail } = bannerParts(first);
+
   return (
-    <View style={styles.wrap}>
+    <View>
+      <View style={styles.top}>
+        <Pressable
+          onPress={onSeeAll}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={`See all ${noun}`}
+        >
+          <Text style={styles.seeAll}>See all</Text>
+        </Pressable>
+      </View>
       <Pressable
         onPress={() => onOpen(first)}
         style={styles.card}
         accessibilityRole="button"
         accessibilityLabel={bannerText(first)}
       >
-        <Text style={styles.text}>{bannerText(first)}</Text>
-        <Text style={styles.action}>Open</Text>
+        <View style={styles.dot} />
+        <View style={styles.copy}>
+          <Text style={styles.head} numberOfLines={2}>{head}</Text>
+          <Text style={styles.detail} numberOfLines={2}>{detail}</Text>
+          {extra > 0 ? <Text style={styles.more}>+{extra} more active {noun}</Text> : null}
+        </View>
       </Pressable>
-      {extra > 0 ? (
-        <Pressable
-          onPress={onSeeAll}
-          style={styles.more}
-          accessibilityRole="button"
-          accessibilityLabel={`${extra} more active requests. See all`}
-        >
-          <Text style={styles.moreText}>
-            + {extra} more · See all
-          </Text>
-        </Pressable>
-      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    marginHorizontal: theme.layout.screenPadding,
-    marginBottom: theme.spacing.lg,
-    gap: theme.spacing.sm,
+  top: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 22,
+    paddingBottom: 7,
+  },
+  seeAll: {
+    fontFamily: theme.fonts.bodyMedium,
+    fontSize: 12,
+    color: theme.colors.green,
   },
   card: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.md,
+    alignItems: 'flex-start',
+    gap: 9,
+    marginHorizontal: theme.layout.screenPadding,
+    marginBottom: theme.spacing.lg,
+    padding: theme.spacing.md,
+    borderRadius: 13,
     backgroundColor: theme.colors.bg3,
-    borderWidth: 0.5,
+    borderWidth: 1,
     borderColor: theme.colors.border2,
-    borderRadius: theme.radius.control,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.md,
   },
-  text: {
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: theme.colors.green,
+    marginTop: 5,
+    marginHorizontal: 4,
+  },
+  copy: {
     flex: 1,
-    fontFamily: theme.fonts.body,
-    fontSize: theme.fontSize.body,
-    lineHeight: 20,
+    minWidth: 0,
+    gap: 4,
+  },
+  head: {
+    fontFamily: theme.fonts.bodyMedium,
+    fontSize: 12,
     color: theme.colors.text,
   },
-  action: {
-    fontFamily: theme.fonts.bodyMedium,
-    fontSize: theme.fontSize.body,
-    color: theme.colors.green,
+  detail: {
+    fontFamily: theme.fonts.body,
+    fontSize: 10,
+    color: theme.colors.text2,
   },
   more: {
-    alignSelf: 'flex-start',
-    paddingVertical: theme.spacing.xs,
-  },
-  moreText: {
-    fontFamily: theme.fonts.bodyMedium,
-    fontSize: theme.fontSize.body,
-    color: theme.colors.green,
+    fontFamily: theme.fonts.body,
+    fontSize: 10,
+    color: theme.colors.text3,
   },
 });

@@ -66,6 +66,7 @@ def main():
             "schema.sql",    # Core tables, indexes, and auth functions
             "holder.sql",    # Card Holder-specific functions
             "requester.sql", # Requester-specific functions
+            "stats.sql",     # Card and user totals
         ]
 
         print(f"\nExecuting {len(sql_files)} SQL files...")

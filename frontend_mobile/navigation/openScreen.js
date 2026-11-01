@@ -16,7 +16,7 @@ function findStack(navigation) {
   let current = navigation;
   while (current) {
     const names = current.getState?.()?.routeNames;
-    if (names?.includes('order-detail')) return current;
+    if (names?.includes('order')) return current;
     current = current.getParent?.();
   }
   return navigation;

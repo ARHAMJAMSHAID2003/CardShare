@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import theme from '../constants/theme';
 import { unreadLabel } from '../utils/format';
 
-export default function PrimaryButton({ label, count, onPress, disabled, loading, compact }) {
+export default function PrimaryButton({ label, count, onPress, disabled, loading, compact, danger }) {
   const unread = unreadLabel(count);
   const accessibilityLabel = unread ? `${label}, ${unread} unread` : label;
   return (
@@ -12,14 +12,15 @@ export default function PrimaryButton({ label, count, onPress, disabled, loading
       style={({ pressed }) => [
         styles.button,
         compact && styles.compact,
-        pressed && !disabled && styles.pressed,
+        danger && styles.danger,
+        pressed && !disabled && (danger ? styles.dangerPressed : styles.pressed),
         (disabled || loading) && styles.disabled,
       ]}
       onPress={onPress}
       disabled={disabled || loading}
     >
       <View style={styles.row}>
-        <Text style={styles.text}>{loading ? 'Please wait…' : label}</Text>
+        <Text style={[styles.text, danger && styles.dangerText]}>{loading ? 'Please wait…' : label}</Text>
         {unread && !loading ? (
           <View style={styles.count}>
             <Text style={styles.countText}>{unread}</Text>
@@ -44,6 +45,16 @@ const styles = StyleSheet.create({
   pressed: {
     backgroundColor: theme.colors.greenDark,
     transform: [{ scale: 0.98 }],
+  },
+  danger: {
+    backgroundColor: theme.colors.red,
+  },
+  dangerPressed: {
+    backgroundColor: '#E04444',
+    transform: [{ scale: 0.98 }],
+  },
+  dangerText: {
+    color: theme.colors.white,
   },
   disabled: {
     opacity: 0.6,

@@ -1,11 +1,29 @@
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
+// The side-panel glyph: a rounded square with a divider near the left edge.
+export function PanelIcon({ color, size = 24 }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Rect x="3.5" y="3.5" width="17" height="17" rx="4" stroke={color} strokeWidth="2" />
+      <Path d="M9.5 3.5v17" stroke={color} strokeWidth="2" />
+    </Svg>
+  );
+}
+
+export function ChatIcon({ color, size = 22 }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M4 5h16v11H9l-5 4V5z" stroke={color} strokeWidth="1.9" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
 export function NavIcon({ name, color }) {
   if (name === 'home') {
     return (
       <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-        <Path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z" stroke={color} strokeWidth="1.8" strokeLinejoin="round" />
-        <Path d="M9 21V12h6v9" stroke={color} strokeWidth="1.8" strokeLinejoin="round" />
+        <Circle cx="12" cy="12" r="9" stroke={color} strokeWidth="1.8" />
+        <Path d="M7 12h10M12 7v10" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
       </Svg>
     );
   }
@@ -22,9 +40,8 @@ export function NavIcon({ name, color }) {
   if (name === 'request') {
     return (
       <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-        <Rect x="2" y="7" width="20" height="14" rx="3" stroke={color} strokeWidth="1.8" />
-        <Path d="M16 7V6a4 4 0 0 0-8 0v1" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
-        <Circle cx="12" cy="14" r="2" stroke={color} strokeWidth="1.8" />
+        <Rect x="3" y="4" width="18" height="16" rx="3" stroke={color} strokeWidth="1.8" />
+        <Path d="M7 9h10M7 13h7" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
       </Svg>
     );
   }

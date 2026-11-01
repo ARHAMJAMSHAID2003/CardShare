@@ -14,21 +14,39 @@ export function sortBannerItems(items) {
   });
 }
 
-export function bannerText(item) {
-  const name = item.personName || 'Someone';
+function headFor(item) {
+  const name = item.firstName || 'Someone';
   const store = item.title || 'Order';
-  const amount = formatPkr(item.amount);
   if (item.role === 'asked') {
-    if (item.status === 'pending') return `Waiting for ${name} to accept · ${store} ${amount}`;
-    if (item.status === 'accepted') return `Waiting for ${name} to buy · ${store} ${amount}`;
-    if (item.status === 'proof_submitted') return `${name} sent proof · ${store}`;
-    if (item.status === 'unpaid') return `Pay ${name} · ${store} ${amount}`;
+    if (item.status === 'pending') return `Waiting for ${name} to accept`;
+    if (item.status === 'accepted') return `${name} is buying it`;
+    if (item.status === 'proof_submitted') return `Check ${name}\u2019s proof`;
+    if (item.status === 'unpaid') return `Pay ${name}`;
+  } else {
+    if (item.status === 'pending') return `${name} wants ${store} on your ${item.bankName || 'card'}`.trim();
+    if (item.status === 'accepted') return `Buy it and send proof for ${name}`;
+    if (item.status === 'proof_submitted') return `Waiting for ${name} to check`;
+    if (item.status === 'unpaid') return `${name} owes you`;
   }
-  if (item.role === 'holding') {
-    if (item.status === 'pending') return `${name} wants ${store} (${amount})`;
-    if (item.status === 'accepted') return `Upload proof · ${store} for ${name}`;
-    if (item.status === 'proof_submitted') return `Waiting for ${name} · ${store}`;
-    if (item.status === 'unpaid') return `${name} owes you · ${store}`;
+  return store;
+}
+
+function detailFor(item) {
+  const card = [item.bankName, item.cardTier].filter(Boolean).join(' ');
+  const hasMoney = item.owed != null && (item.status === 'proof_submitted' || item.status === 'unpaid');
+  let money = formatPkr(item.amount);
+  if (hasMoney) {
+    money = item.role === 'asked' ? `you pay ${formatPkr(item.owed)}` : `you receive ${formatPkr(item.owed)}`;
   }
-  return `${store} · ${amount}`;
+  return [item.title, card, money].filter(Boolean).join(' · ');
+}
+
+// Two lines for the Home banner: what to do, then the store, card and amount.
+export function bannerParts(item) {
+  return { head: headFor(item), detail: detailFor(item) };
+}
+
+export function bannerText(item) {
+  const { head, detail } = bannerParts(item);
+  return `${head}. ${detail}`;
 }

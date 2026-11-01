@@ -1,16 +1,17 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { getCards, toggleCardSharing } from '../api/cards';
 import { getCircle, getSharingCards } from '../api/circle';
 import ActiveOrderBanner from '../components/ActiveOrderBanner';
-import CardCarousel from '../components/CardCarousel';
+import CardPager from '../components/CardPager';
 import CircleCardViewer from '../components/CircleCardViewer';
 import CircleStart from '../components/CircleStart';
 import CreateOrderCard from '../components/CreateOrderCard';
-import EmptyState from '../components/EmptyState';
 import ErrorBanner from '../components/ErrorBanner';
+import { CircleEmpty, HomeIntro, PrivacyNote, SectionHeading } from '../components/HomeParts';
 import LoadingState from '../components/LoadingState';
+import OwnedCardItem from '../components/OwnedCardItem';
 import ScreenShell from '../components/ScreenShell';
 import TabHeader from '../components/TabHeader';
 import theme from '../constants/theme';
@@ -22,6 +23,29 @@ import { useRequestInbox } from '../queries/inbox';
 import { useScreenQuery } from '../queries/useScreenQuery';
 import { asList, sharingOn } from '../utils/format';
 import { itemsForMode, sortBannerItems } from '../utils/orderBanner';
+
+const INTRO = {
+  requester: {
+    eyebrow: 'YOUR TRUSTED CIRCLE',
+    title: 'Find the right card\nfor your next order.',
+    text: 'Browse cards your friends and family have chosen to share.',
+  },
+  requesterNew: {
+    eyebrow: 'WELCOME TO CARDSHARE',
+    title: 'Save on your\nnext order.',
+    text: 'Add someone you trust. Their card can lower the price of what you buy.',
+  },
+  holder: {
+    eyebrow: 'YOUR CARDHOLDER DASHBOARD',
+    title: 'Your cards.\nYour circle. Your rewards.',
+    text: 'Review incoming requests and manage which cards your circle can access.',
+  },
+  holderNew: {
+    eyebrow: 'YOUR CARDHOLDER DASHBOARD',
+    title: 'Earn when you\nplace orders.',
+    text: 'Add a card and share it with your circle. You earn an incentive on every order you place for them.',
+  },
+};
 
 export default function HomeScreen() {
   const navigation = useNavigation();
@@ -35,8 +59,8 @@ export default function HomeScreen() {
     async ({ signal }) => asList(await getCircle(sessionId, user.id, { signal }))
   );
   const members = circle.data || [];
-  const inCircle = members.some((member) => member.c_status === 'accepted');
-  const showWelcome = Boolean(circle.data) && !inCircle;
+  const accepted = members.filter((member) => member.c_status === 'accepted');
+  const inCircle = accepted.length > 0;
 
   const sharing = useScreenQuery(
     ['circle-cards', user?.id],
@@ -47,12 +71,20 @@ export default function HomeScreen() {
   const cardsQuery = useScreenQuery(
     ['cards', user?.id],
     async ({ signal }) => asList(await getCards(sessionId, user.id, { signal })),
-    inCircle && mode === 'holder'
+    mode === 'holder'
   );
 
   const bannerItems = sortBannerItems(itemsForMode(inbox.items, mode));
   const cards = cardsQuery.data || [];
   const people = sharing.data || [];
+
+  const holder = mode === 'holder';
+  const loading = holder ? cardsQuery.showLoading : circle.showLoading;
+  const newRequester = !holder && Boolean(circle.data) && !inCircle;
+  const newHolder = holder && Boolean(cardsQuery.data) && cards.length === 0;
+  const intro = holder
+    ? (newHolder ? INTRO.holderNew : INTRO.holder)
+    : (newRequester ? INTRO.requesterNew : INTRO.requester);
 
   const onRefresh = () => {
     circle.refetch();
@@ -80,17 +112,46 @@ export default function HomeScreen() {
 
   const openItem = (item) => openScreen(navigation, item.nav.screen, item.nav.params);
 
+  const requestCard = (person, card) => {
+    openScreen(navigation, 'create-request', {
+      bank: card.bank_name,
+      tier: card.card_tier,
+      holderId: person.id,
+      cardId: card.id,
+    });
+  };
+
   return (
     <ScreenShell onRefresh={onRefresh} refreshing={circle.refreshing || inbox.refreshing}>
       <TabHeader />
-      {circle.showLoading ? (
+      <HomeIntro eyebrow={intro.eyebrow} title={intro.title} text={intro.text} />
+      {loading ? (
         <LoadingState />
-      ) : showWelcome ? (
+      ) : newRequester ? (
         <CircleStart
           members={members}
           onAdd={() => openScreen(navigation, 'add-circle')}
           onOpenCircle={() => openCircle(navigation, { pending: true })}
         />
+      ) : newHolder ? (
+        <>
+          <ActiveOrderBanner
+            items={bannerItems}
+            mode={mode}
+            onOpen={openItem}
+            onSeeAll={() => openRequests(navigation)}
+          />
+          <CircleEmpty
+            icon="card"
+            title="No cards yet"
+            text="Add a card and choose when to share it. Your circle never sees the full number."
+            button="Add a card"
+            onPress={() => openScreen(navigation, 'add-card')}
+          />
+          <View style={styles.pad}>
+            <ErrorBanner message={actionError || cardsQuery.errorMessage} onRetry={() => cardsQuery.refetch()} />
+          </View>
+        </>
       ) : (
         <>
           {circle.isError && !circle.data ? (
@@ -100,45 +161,62 @@ export default function HomeScreen() {
           ) : null}
           <ActiveOrderBanner
             items={bannerItems}
+            mode={mode}
             onOpen={openItem}
             onSeeAll={() => openRequests(navigation)}
           />
           {mode === 'requester' ? (
             <>
               <CreateOrderCard onPress={() => openScreen(navigation, 'create-request')} />
-              <Text style={styles.section}>Circle cards</Text>
+              <SectionHeading
+                eyebrow="CARDS YOU CAN ACCESS"
+                title="Your Circle"
+                count={`${accepted.length} ${accepted.length === 1 ? 'member' : 'members'}`}
+              />
               {sharing.showLoading ? (
                 <LoadingState />
               ) : (
-                <CircleCardViewer people={people} />
+                <CircleCardViewer people={people} onRequest={requestCard} />
               )}
               <View style={styles.pad}>
                 <ErrorBanner message={sharing.errorMessage} onRetry={() => sharing.refetch()} />
               </View>
+              <PrivacyNote>Card details are protected. Full card numbers are never shown.</PrivacyNote>
             </>
           ) : (
             <>
-              {!bannerItems.length ? (
-                <Text style={styles.caught}>Nothing waiting. Your shared cards are visible to your circle.</Text>
-              ) : null}
-              <Text style={styles.section}>Your cards</Text>
-              {cardsQuery.showLoading ? (
-                <LoadingState />
-              ) : cards.length === 0 ? (
-                <View style={styles.pad}>
-                  <EmptyState message="No cards yet." />
-                </View>
-              ) : (
-                <CardCarousel
-                  cards={cards}
-                  displayName={user.display_name}
-                  onToggleSharing={toggleSharing}
-                  showRemove={false}
+              <SectionHeading
+                eyebrow="YOUR REGISTERED CARDS"
+                title="Your Cards"
+                count={`${cards.length} ${cards.length === 1 ? 'card' : 'cards'}`}
+              />
+              <View style={styles.pad}>
+                <CardPager
+                  items={cards}
+                  dotsLabel="Card"
+                  renderItem={(card) => (
+                    <OwnedCardItem
+                      card={card}
+                      displayName={user.display_name}
+                      onToggleSharing={toggleSharing}
+                    />
+                  )}
+                  extraBelow={(
+                    <Pressable
+                      style={styles.manage}
+                      onPress={() => openScreen(navigation, 'my-cards')}
+                      accessibilityRole="button"
+                      accessibilityLabel="Manage cards"
+                    >
+                      <Text style={styles.manageText}>Manage cards ›</Text>
+                    </Pressable>
+                  )}
                 />
-              )}
+              </View>
               <View style={styles.pad}>
                 <ErrorBanner message={actionError || cardsQuery.errorMessage} onRetry={() => cardsQuery.refetch()} />
               </View>
+              <PrivacyNote>Your full card details are never shared with your circle.</PrivacyNote>
             </>
           )}
         </>
@@ -148,25 +226,18 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  section: {
-    fontFamily: theme.fonts.bodyMedium,
-    fontSize: theme.fontSize.small,
-    color: theme.colors.text3,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginTop: theme.spacing.sm,
-    marginBottom: theme.spacing.section,
-    paddingHorizontal: theme.layout.screenPadding,
-  },
-  caught: {
-    fontFamily: theme.fonts.body,
-    fontSize: theme.fontSize.body,
-    lineHeight: 22,
-    color: theme.colors.text2,
-    paddingHorizontal: theme.layout.screenPadding,
-    marginBottom: theme.spacing.lg,
-  },
   pad: {
     paddingHorizontal: theme.layout.screenPadding,
+  },
+  manage: {
+    alignSelf: 'center',
+    marginTop: 12,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+  },
+  manageText: {
+    fontFamily: theme.fonts.bodyMedium,
+    fontSize: 12,
+    color: theme.colors.green,
   },
 });

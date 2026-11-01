@@ -1,18 +1,52 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import EmptyState from '../components/EmptyState';
+import { getUserStats } from '../api/profile';
 import ErrorBanner from '../components/ErrorBanner';
+import { CircleEmpty } from '../components/HomeParts';
 import ListCard from '../components/ListCard';
 import LoadingState from '../components/LoadingState';
 import ScreenShell from '../components/ScreenShell';
+import StatsSlider from '../components/StatsSlider';
 import TopBar from '../components/TopBar';
 import theme from '../constants/theme';
 import { useSession } from '../context/SessionContext';
 import { openScreen } from '../navigation/openScreen';
 import { loadHistory } from '../queries/history';
 import { useScreenQuery } from '../queries/useScreenQuery';
-import { formatDate, formatPkr } from '../utils/format';
-import { txnStatusLabel, txnStatusVariant } from '../utils/orderRules';
+import { historyRow } from '../utils/history';
+
+function Section({ title, rows, role, navigation }) {
+  if (!rows.length) return null;
+  return (
+    <>
+      <View style={styles.sectionRow}>
+        <Text style={styles.section}>{title}</Text>
+        {rows.length > 3 ? (
+          <Pressable
+            onPress={() => openScreen(navigation, 'history-list', { role })}
+            accessibilityRole="button"
+            accessibilityLabel={`See all ${title.toLowerCase()}`}
+          >
+            <Text style={styles.seeAll}>See all</Text>
+          </Pressable>
+        ) : null}
+      </View>
+      {rows.slice(0, 3).map((txn) => {
+        const row = historyRow(txn, role);
+        return (
+          <ListCard
+            key={`${role}-${row.id}`}
+            title={row.title}
+            subtitle={row.subtitle}
+            badgeLabel={row.badgeLabel}
+            badgeVariant={row.badgeVariant}
+            onPress={() => openScreen(navigation, row.nav.screen, row.nav.params)}
+          />
+        );
+      })}
+    </>
+  );
+}
 
 export default function HistoryScreen() {
   const navigation = useNavigation();
@@ -21,77 +55,40 @@ export default function HistoryScreen() {
     ['history', user?.id],
     ({ signal, client }) => loadHistory(sessionId, user.id, { signal, client })
   );
+  const stats = useScreenQuery(
+    ['user-stats', user?.id],
+    ({ signal }) => getUserStats(sessionId, user.id, { signal })
+  );
   const asRequester = history.data?.asRequester || [];
   const asHolder = history.data?.asHolder || [];
   const error = history.isError ? history.errorMessage : (history.data?.error || '');
   const empty = !history.showLoading && asRequester.length === 0 && asHolder.length === 0;
 
+  const refresh = () => {
+    history.refetch();
+    stats.refetch();
+  };
+
   return (
-    <ScreenShell
-      onRefresh={() => history.refetch()}
-      refreshing={history.refreshing}
-    >
+    <ScreenShell onRefresh={refresh} refreshing={history.refreshing}>
       <TopBar title="History" onBack={() => navigation.goBack()} />
       {history.showLoading ? (
         <LoadingState />
       ) : empty && !error ? (
-        <View style={styles.pad}>
-          <EmptyState message="No orders yet." />
-        </View>
+        <CircleEmpty
+          icon="history"
+          title="No history yet"
+          text="Paid and cancelled orders will show up here, along with how much you saved and earned."
+        />
       ) : (
         <>
-          {asRequester.length > 0 ? (
-            <>
-              <View style={styles.sectionRow}>
-                <Text style={styles.section}>Orders you requested</Text>
-                <Pressable
-                  onPress={() => openScreen(navigation, 'history-list', { role: 'requester' })}
-                  accessibilityRole="button"
-                  accessibilityLabel="See all orders you requested"
-                >
-                  <Text style={styles.seeAll}>See all</Text>
-                </Pressable>
-              </View>
-              {asRequester.slice(0, 3).map((txn) => (
-                <ListCard
-                  key={`r-${txn.id}`}
-                  title={txn.merchant}
-                  subtitle={`${txn.card_holder_name || 'Card holder'} · ${formatPkr(txn.order_amount)} · ${formatDate(txn.created_at)}`}
-                  badgeLabel={txnStatusLabel(txn.txn_status, 'requester')}
-                  badgeVariant={txnStatusVariant(txn.txn_status)}
-                  onPress={() => openScreen(navigation, 'transaction-detail', { txnId: txn.id, role: 'requester' })}
-                />
-              ))}
-            </>
-          ) : null}
-          {asHolder.length > 0 ? (
-            <>
-              <View style={styles.sectionRow}>
-                <Text style={styles.section}>Orders on your cards</Text>
-                <Pressable
-                  onPress={() => openScreen(navigation, 'history-list', { role: 'holder' })}
-                  accessibilityRole="button"
-                  accessibilityLabel="See all orders on your cards"
-                >
-                  <Text style={styles.seeAll}>See all</Text>
-                </Pressable>
-              </View>
-              {asHolder.slice(0, 3).map((txn) => (
-                <ListCard
-                  key={`h-${txn.id}`}
-                  title={txn.merchant}
-                  subtitle={`${txn.requester_name || 'Someone'} · ${formatPkr(txn.order_amount)} · ${formatDate(txn.created_at)}`}
-                  badgeLabel={txnStatusLabel(txn.txn_status, 'holder')}
-                  badgeVariant={txnStatusVariant(txn.txn_status)}
-                  onPress={() => openScreen(navigation, 'transaction-detail', { txnId: txn.id, role: 'holder' })}
-                />
-              ))}
-            </>
-          ) : null}
+          {stats.data ? <StatsSlider stats={stats.data} /> : null}
+          <Section title="Past requests" rows={asRequester} role="requester" navigation={navigation} />
+          <Section title="Past orders" rows={asHolder} role="holder" navigation={navigation} />
         </>
       )}
       <View style={styles.pad}>
-        <ErrorBanner message={error} onRetry={() => history.refetch()} />
+        <ErrorBanner message={error} onRetry={refresh} />
       </View>
     </ScreenShell>
   );

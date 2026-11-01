@@ -1,16 +1,18 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { deleteCard, getCards, toggleCardSharing } from '../api/cards';
-import CardCarousel from '../components/CardCarousel';
+import { deleteCard, getCardStats, getCards, toggleCardSharing } from '../api/cards';
+import CardPager from '../components/CardPager';
 import ConfirmDialog from '../components/ConfirmDialog';
-import EmptyState from '../components/EmptyState';
 import ErrorBanner from '../components/ErrorBanner';
+import { CircleEmpty } from '../components/HomeParts';
 import LoadingState from '../components/LoadingState';
+import OwnedCardItem from '../components/OwnedCardItem';
 import ScreenShell from '../components/ScreenShell';
 import TopBar from '../components/TopBar';
 import theme from '../constants/theme';
 import { useSession } from '../context/SessionContext';
+import { useToast } from '../context/ToastContext';
 import { openScreen } from '../navigation/openScreen';
 import { queryClient } from '../queries/client';
 import { useScreenQuery } from '../queries/useScreenQuery';
@@ -19,6 +21,7 @@ import { asList, sharingOn } from '../utils/format';
 export default function MyCardsScreen() {
   const navigation = useNavigation();
   const { sessionId, user } = useSession();
+  const showToast = useToast();
   const [cardToRemove, setCardToRemove] = useState(null);
   const [removing, setRemoving] = useState(false);
   const [actionError, setActionError] = useState('');
@@ -27,7 +30,15 @@ export default function MyCardsScreen() {
     ['cards', user?.id],
     async ({ signal }) => asList(await getCards(sessionId, user.id, { signal }))
   );
+  const statsQuery = useScreenQuery(
+    ['card-stats', user?.id],
+    async ({ signal }) => asList(await getCardStats(sessionId, user.id, { signal }))
+  );
   const cards = cardsQuery.data || [];
+  const statsById = {};
+  (statsQuery.data || []).forEach((row) => {
+    statsById[row.card_id] = row;
+  });
   const error = actionError || cardsQuery.errorMessage;
 
   const toggleSharing = async (card) => {
@@ -41,6 +52,8 @@ export default function MyCardsScreen() {
     setActionError('');
     try {
       await toggleCardSharing(sessionId, user.id, card.id);
+      showToast(`${card.bank_name} ${card.card_tier} sharing turned ${next ? 'on' : 'off'}`);
+      queryClient.invalidateQueries({ queryKey: ['circle-cards'] });
     } catch (err) {
       patch(card.allow_sharing);
       setActionError(err.message);
@@ -56,6 +69,9 @@ export default function MyCardsScreen() {
       queryClient.setQueryData(['cards', user.id], (current) => (
         asList(current).filter((item) => item.id !== cardToRemove.id)
       ));
+      queryClient.invalidateQueries({ queryKey: ['card-stats', user.id] });
+      queryClient.invalidateQueries({ queryKey: ['circle-cards'] });
+      showToast('Card removed');
       setCardToRemove(null);
     } catch (err) {
       setActionError(err.message);
@@ -65,38 +81,61 @@ export default function MyCardsScreen() {
     }
   };
 
+  const refresh = () => {
+    cardsQuery.refetch();
+    statsQuery.refetch();
+  };
+  const addCard = () => openScreen(navigation, 'add-card');
+  const removeName = cardToRemove ? `${cardToRemove.bank_name} ${cardToRemove.card_tier}` : '';
+
   return (
-    <ScreenShell onRefresh={() => cardsQuery.refetch()} refreshing={cardsQuery.refreshing}>
-      <TopBar title="My cards" onBack={() => navigation.goBack()} />
+    <ScreenShell onRefresh={refresh} refreshing={cardsQuery.refreshing}>
+      <TopBar
+        title="Manage Cards"
+        onBack={() => navigation.goBack()}
+        actionLabel={cards.length ? '+ Add' : undefined}
+        onAction={cards.length ? addCard : undefined}
+      />
       {cardsQuery.showLoading ? (
         <LoadingState />
       ) : cards.length === 0 ? (
-        <View style={styles.pad}>
-          <EmptyState message="No cards yet." />
-        </View>
-      ) : (
-        <CardCarousel
-          cards={cards}
-          displayName={user.display_name}
-          onToggleSharing={toggleSharing}
-          onRemove={setCardToRemove}
+        <CircleEmpty
+          icon="card"
+          title="No cards yet"
+          text="Add the bank cards you own. Your full card number is never shown to your circle."
+          button="Add a card"
+          onPress={addCard}
         />
+      ) : (
+        <>
+          <Text style={styles.blank}>
+            Add and manage the bank cards you own. Your full card number is never shown to your circle.
+          </Text>
+          <View style={styles.pad}>
+            <CardPager
+              items={cards}
+              dotsLabel="Card"
+              renderItem={(card) => (
+                <OwnedCardItem
+                  card={card}
+                  displayName={user.display_name}
+                  onToggleSharing={toggleSharing}
+                  manage
+                  stats={statsById[card.id]}
+                  onRemove={setCardToRemove}
+                />
+              )}
+            />
+          </View>
+        </>
       )}
-      <Pressable
-        style={styles.ghost}
-        onPress={() => openScreen(navigation, 'add-card')}
-        accessibilityRole="button"
-        accessibilityLabel="Add a card"
-      >
-        <Text style={styles.ghostText}>+ Add a card</Text>
-      </Pressable>
       <View style={styles.pad}>
-        <ErrorBanner message={error} onRetry={() => cardsQuery.refetch()} />
+        <ErrorBanner message={error} onRetry={refresh} />
       </View>
       <ConfirmDialog
         visible={Boolean(cardToRemove)}
-        title="Remove this card?"
-        body="It leaves your list. Past orders keep the bank and tier. A card with a live order cannot be removed."
+        title={`Remove ${removeName}?`}
+        body="Your circle will no longer see this card. Past orders stay in History. A card with a live order cannot be removed."
         confirmLabel="Remove card"
         danger
         loading={removing}
@@ -111,19 +150,12 @@ const styles = StyleSheet.create({
   pad: {
     paddingHorizontal: theme.layout.screenPadding,
   },
-  ghost: {
+  blank: {
     marginHorizontal: theme.layout.screenPadding,
     marginBottom: theme.spacing.lg,
-    backgroundColor: theme.colors.bg3,
-    borderWidth: 0.5,
-    borderColor: theme.colors.border2,
-    borderRadius: theme.radius.control,
-    paddingVertical: theme.spacing.md,
-    alignItems: 'center',
-  },
-  ghostText: {
-    fontFamily: theme.fonts.bodyMedium,
-    fontSize: theme.fontSize.body,
-    color: theme.colors.text,
+    fontFamily: theme.fonts.body,
+    fontSize: 14,
+    lineHeight: 21,
+    color: theme.colors.text2,
   },
 });

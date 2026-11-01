@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import theme from '../constants/theme';
-import { useRoleMode } from '../context/RoleMode';
 import { useRequestInbox } from '../context/RequestInbox';
+import { useRoleMode } from '../context/RoleMode';
 import { useBottomInset } from '../hooks/useTopInset';
 import { itemsForMode } from '../utils/orderBanner';
 import { isYourTurn } from '../utils/requestInbox';
@@ -14,28 +14,27 @@ function unreadLabel(count) {
   return String(value);
 }
 
-const TABS = [
-  ['Home', 'home', 'Home'],
-  ['Request', 'request', 'Request'],
-];
-
 export default function BottomNav({ state, navigation }) {
   const bottomInset = useBottomInset();
-  const { mode } = useRoleMode();
   const { items } = useRequestInbox();
+  const { mode } = useRoleMode();
+  const tabs = [
+    ['Home', 'home', 'Home'],
+    ['Request', 'request', mode === 'holder' ? 'Orders' : 'Requests'],
+  ];
   const visible = itemsForMode(items, mode);
   const yourTurn = visible.some(isYourTurn);
   const unread = unreadLabel(visible.reduce((sum, item) => sum + (Number(item.unreadCount) || 0), 0));
   const activeName = state.routes[state.index]?.name;
   return (
     <View style={[styles.nav, { paddingBottom: bottomInset }]}>
-      {TABS.map(([routeName, icon, label]) => {
+      {tabs.map(([routeName, icon, label]) => {
         const active = routeName === activeName;
         const color = active ? theme.colors.green : theme.colors.text3;
         const showTurn = routeName === 'Request' && yourTurn;
         const showUnread = routeName === 'Request' && unread;
         let accessibilityLabel = label;
-        if (showTurn) accessibilityLabel += ', your turn';
+        if (showTurn) accessibilityLabel += ', needs you';
         if (showUnread) accessibilityLabel += `, ${unread} unread`;
         return (
           <Pressable
@@ -84,18 +83,16 @@ const styles = StyleSheet.create({
   turnDot: {
     position: 'absolute',
     top: -2,
-    left: -2,
+    right: -2,
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: theme.colors.green,
-    borderWidth: 1.5,
-    borderColor: theme.colors.bg,
+    backgroundColor: theme.colors.red,
   },
   unread: {
     position: 'absolute',
     top: -6,
-    right: -8,
+    right: -12,
     minWidth: 16,
     height: 16,
     paddingHorizontal: 4,

@@ -52,6 +52,8 @@ export default function AddCardScreen() {
       showToast('Card added');
       await queryClient.invalidateQueries({ queryKey: ['cards', user.id] });
       await queryClient.invalidateQueries({ queryKey: ['home', user.id] });
+      await queryClient.invalidateQueries({ queryKey: ['card-stats', user.id] });
+      await queryClient.invalidateQueries({ queryKey: ['circle-cards'] });
       goBack();
     } catch (err) {
       setError(err.message);
