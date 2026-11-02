@@ -1,7 +1,15 @@
 -- database/testdata.sql
 --
--- Three users. Safe to run again: it removes these three phones first, then inserts them.
+-- Three main users, plus seven helper accounts that only send or receive invites for Sara.
+-- Safe to run again: it removes these ten phones first, then inserts them.
 -- Does not touch any other users.
+--
+-- Pending invites for Sara (Circle > Pending): from Ayesha Malik 03004444444, Usman Tariq 03009999999,
+-- Hamza Sheikh 03006666666, Zainab Qureshi 03007777777 and Omar Farooq 03008888888.
+-- Save some of those numbers in the phone's contacts under a name of your choice, then turn on
+-- "Check invites against my contacts" to see them land in "In your contacts".
+-- Sent by Sara (Circle > Sent): Mariam Siddiqui 03001212121 and Talha Javed 03002323232.
+-- The helper accounts have no cards and no orders, so they never appear in the circle carousel.
 --
 -- Log in with the app's phone screen. Type the local number; the app sends +92.
 -- The code is printed by the backend (WhatsApp send is not wired).
@@ -10,26 +18,41 @@
 --   Ahmed Ali      03002222222
 --   Bilal Hussain  03003333333
 --
--- Circle has one row per pair, so three people only have three relationships.
--- Declined needs a pair of its own, and that slot is already Ahmed's pending
--- invite to Bilal, which Bilal can accept or decline and Ahmed can cancel.
+-- Everyone is in everyone's circle (all three pairs accepted), so every person
+-- can request from and hold for both of the others. Remove is blocked on every
+-- pair because each pair has a live order.
 --   Sara  → Ahmed   accepted
 --   Sara  → Bilal   accepted
---   Ahmed → Bilal   pending
--- Remove stays blocked on the two accepted pairs because both still have a live order.
+--   Ahmed → Bilal   accepted
 --
--- Live orders, one per direction (the database allows only one):
+-- Cards (shared = visible to the circle, Request card works on it):
+--   Sara   HBL Gold (shared), Standard Chartered Platinum (shared), Meezan Classic (off)
+--   Ahmed  UBL Platinum (shared), MCB Signature (shared), Bank Alfalah World (off)
+--   Bilal  Askari Titanium (shared), JS Bank Gold (shared), Faysal Bank Classic (off)
+-- Every member has two shared cards, so the circle carousel shows "2 cards" for all.
+-- Meezan Classic, Bank Alfalah World and Faysal Classic have no paid order, so Manage
+-- Cards shows the "No orders yet" stats box for them.
+--
+-- Live orders, all six directions (the database allows one per pair and direction):
 --   Sara  → Ahmed   proof_submitted   Daraz          Sara can accept or reject the proof. Chat is open.
---   Ahmed → Sara    accepted          Khaadi         Sara can submit proof or either can cancel. Chat is open.
+--   Ahmed → Sara    accepted          Khaadi         Sara can send proof or either can cancel. Chat is open.
 --   Sara  → Bilal   pending           Foodpanda      Bilal can accept or decline. Address stays hidden. No chat.
 --   Bilal → Sara    pending           Junaid Jamshed Sara can accept or decline. Address stays hidden. No chat.
+--   Ahmed → Bilal   accepted          Bata           No link and no note. Bilal can send proof. Chat is open.
+--   Bilal → Ahmed   proof_submitted   Ideas          Long note and a link. Bilal checks Ahmed's proof. Chat is open.
+-- Between them every person is requester and holder on pending, accepted and proof.
 --
 -- History covers unpaid, paid, cancelled by the requester, and cancelled by the holder.
 -- Each person is the requester on some rows and the card holder on others,
 -- including every one of those four statuses in both roles.
 -- Batik is the holder-side cancel by the requester for Bilal.
--- Paid rows exist in August, September, and October so all-time totals and this month differ.
--- October paid rows are what the home totals use (updated_at in October 2026).
+-- Paid rows exist in August, September, last month and this month, so all-time totals,
+-- "This month" and "Last month" on History all differ. The this-month and last-month
+-- rows are placed relative to the day you run this script (Asia/Karachi), so the stats
+-- never go stale. Older fixed-date rows count in the lifetime total only once they
+-- are more than a month old.
+-- Order types covered: zero discount (Gul Ahmed, share 0), a large basket (Khaadi),
+-- small baskets, rows with and without a link or a note, and a card that was deleted.
 -- One paid row keeps a card id for a card that is no longer in the cards table.
 -- Bank, tier, names, and amounts stay on that row, so History and the totals still count it.
 -- Cancelled rows have a reason and no receipt, because cancel happens before proof.
@@ -38,18 +61,32 @@
 -- The Daraz thread has 33 messages so the chat screen can load an older page.
 -- Screenshot and chat image paths are placeholders and will not load.
 --
--- Read marks are only on the two live chats. Pending has no chat, so its count is 0.
+-- Read marks are only on the four live chats. Pending has no chat, so its count is 0.
 -- No row means every message from the other person is unread. Own messages never count.
 --   Daraz   Sara 4 unread, Ahmed 2 unread
 --   Khaadi  Sara 0 unread, Ahmed 2 unread
--- Sara's Request tab number is 4. Ahmed's is 4. Bilal's is 0.
+--   Bata    Ahmed 1 unread, Bilal 3 unread
+--   Ideas   Ahmed 1 unread, Bilal 2 unread
+-- Unread chat totals: Sara 4, Ahmed 6, Bilal 5.
 
 BEGIN;
+
+-- Start of this Karachi month (m = 0) or last month (m = -1), plus h hours, in ms.
+CREATE FUNCTION pg_temp.seed_ts(m int, h int) RETURNS bigint AS $$
+  SELECT (extract(epoch FROM (
+    (date_trunc('month', now() AT TIME ZONE 'Asia/Karachi') + make_interval(months => m, hours => h))
+    AT TIME ZONE 'Asia/Karachi'
+  )) * 1000)::bigint
+$$ LANGUAGE sql;
 
 CREATE TEMP TABLE seed_user_ids ON COMMIT DROP AS
 SELECT id
 FROM users
-WHERE phone IN ('+923001111111', '+923002222222', '+923003333333');
+WHERE phone IN (
+  '+923001111111', '+923002222222', '+923003333333',
+  '+923004444444', '+923009999999', '+923006666666', '+923007777777', '+923008888888',
+  '+923001212121', '+923002323232'
+);
 
 DELETE FROM chat_messages
 WHERE sender_id IN (SELECT id FROM seed_user_ids)
@@ -94,10 +131,18 @@ WHERE user_id IN (SELECT id FROM seed_user_ids)
       );
 
 DELETE FROM otps
-WHERE phone IN ('+923001111111', '+923002222222', '+923003333333');
+WHERE phone IN (
+  '+923001111111', '+923002222222', '+923003333333',
+  '+923004444444', '+923009999999', '+923006666666', '+923007777777', '+923008888888',
+  '+923001212121', '+923002323232'
+);
 
 DELETE FROM otp_phone_lockout
-WHERE phone IN ('+923001111111', '+923002222222', '+923003333333');
+WHERE phone IN (
+  '+923001111111', '+923002222222', '+923003333333',
+  '+923004444444', '+923009999999', '+923006666666', '+923007777777', '+923008888888',
+  '+923001212121', '+923002323232'
+);
 
 DELETE FROM users
 WHERE id IN (SELECT id FROM seed_user_ids);
@@ -106,7 +151,15 @@ WHERE id IN (SELECT id FROM seed_user_ids);
 INSERT INTO users (id, phone, display_name, created_at) VALUES
   ('aaaaaaaa-0001-4000-8000-000000000001', '+923001111111', 'Sara Khan',     (extract(epoch FROM timestamptz '2026-09-01 09:00:00+05') * 1000)::bigint),
   ('aaaaaaaa-0002-4000-8000-000000000002', '+923002222222', 'Ahmed Ali',     (extract(epoch FROM timestamptz '2026-09-01 09:05:00+05') * 1000)::bigint),
-  ('aaaaaaaa-0003-4000-8000-000000000003', '+923003333333', 'Bilal Hussain', (extract(epoch FROM timestamptz '2026-09-01 09:10:00+05') * 1000)::bigint);
+  ('aaaaaaaa-0003-4000-8000-000000000003', '+923003333333', 'Bilal Hussain', (extract(epoch FROM timestamptz '2026-09-01 09:10:00+05') * 1000)::bigint),
+  -- Helper accounts. They only exist so Sara has pending invites to receive and send.
+  ('aaaaaaaa-0004-4000-8000-000000000004', '+923004444444', 'Ayesha Malik',    (extract(epoch FROM timestamptz '2026-09-05 10:00:00+05') * 1000)::bigint),
+  ('aaaaaaaa-0005-4000-8000-000000000005', '+923009999999', 'Usman Tariq',     (extract(epoch FROM timestamptz '2026-09-05 10:05:00+05') * 1000)::bigint),
+  ('aaaaaaaa-0006-4000-8000-000000000006', '+923006666666', 'Hamza Sheikh',    (extract(epoch FROM timestamptz '2026-09-05 10:10:00+05') * 1000)::bigint),
+  ('aaaaaaaa-0007-4000-8000-000000000007', '+923007777777', 'Zainab Qureshi',  (extract(epoch FROM timestamptz '2026-09-05 10:15:00+05') * 1000)::bigint),
+  ('aaaaaaaa-0008-4000-8000-000000000008', '+923008888888', 'Omar Farooq',     (extract(epoch FROM timestamptz '2026-09-05 10:20:00+05') * 1000)::bigint),
+  ('aaaaaaaa-0009-4000-8000-000000000009', '+923001212121', 'Mariam Siddiqui', (extract(epoch FROM timestamptz '2026-09-05 10:25:00+05') * 1000)::bigint),
+  ('aaaaaaaa-0010-4000-8000-000000000010', '+923002323232', 'Talha Javed',     (extract(epoch FROM timestamptz '2026-09-05 10:30:00+05') * 1000)::bigint);
 
 -- Every tier appears once. Each person has a card that is sharing and a card that is not.
 INSERT INTO cards (id, user_id, bank_name, card_tier, allow_sharing, created_at) VALUES
@@ -116,13 +169,24 @@ INSERT INTO cards (id, user_id, bank_name, card_tier, allow_sharing, created_at)
   ('cccccccc-0002-4000-8000-000000000002', 'aaaaaaaa-0002-4000-8000-000000000002', 'MCB',          'Signature', 1, (extract(epoch FROM timestamptz '2026-09-02 12:05:00+05') * 1000)::bigint),
   ('cccccccc-0002-4000-8000-000000000003', 'aaaaaaaa-0002-4000-8000-000000000002', 'Bank Alfalah', 'World',     0, (extract(epoch FROM timestamptz '2026-09-02 12:10:00+05') * 1000)::bigint),
   ('cccccccc-0003-4000-8000-000000000001', 'aaaaaaaa-0003-4000-8000-000000000003', 'Askari',       'Titanium',  1, (extract(epoch FROM timestamptz '2026-09-02 13:00:00+05') * 1000)::bigint),
-  ('cccccccc-0003-4000-8000-000000000002', 'aaaaaaaa-0003-4000-8000-000000000003', 'Faysal Bank',  'Classic',   0, (extract(epoch FROM timestamptz '2026-09-02 13:05:00+05') * 1000)::bigint);
+  ('cccccccc-0003-4000-8000-000000000002', 'aaaaaaaa-0003-4000-8000-000000000003', 'Faysal Bank',  'Classic',   0, (extract(epoch FROM timestamptz '2026-09-02 13:05:00+05') * 1000)::bigint),
+  ('cccccccc-0001-4000-8000-000000000003', 'aaaaaaaa-0001-4000-8000-000000000001', 'Standard Chartered', 'Platinum', 1, (extract(epoch FROM timestamptz '2026-09-04 11:00:00+05') * 1000)::bigint),
+  ('cccccccc-0003-4000-8000-000000000003', 'aaaaaaaa-0003-4000-8000-000000000003', 'JS Bank',      'Gold',      1, (extract(epoch FROM timestamptz '2026-09-04 13:00:00+05') * 1000)::bigint);
 
 -- user_id sent the invite. friend_id received it.
 INSERT INTO circle (user_id, friend_id, c_status, created_at) VALUES
   ('aaaaaaaa-0001-4000-8000-000000000001', 'aaaaaaaa-0002-4000-8000-000000000002', 'accepted', (extract(epoch FROM timestamptz '2026-09-03 10:00:00+05') * 1000)::bigint),
   ('aaaaaaaa-0001-4000-8000-000000000001', 'aaaaaaaa-0003-4000-8000-000000000003', 'accepted', (extract(epoch FROM timestamptz '2026-09-03 10:05:00+05') * 1000)::bigint),
-  ('aaaaaaaa-0002-4000-8000-000000000002', 'aaaaaaaa-0003-4000-8000-000000000003', 'pending',  (extract(epoch FROM timestamptz '2026-10-14 18:00:00+05') * 1000)::bigint);
+  ('aaaaaaaa-0002-4000-8000-000000000002', 'aaaaaaaa-0003-4000-8000-000000000003', 'accepted', (extract(epoch FROM timestamptz '2026-09-03 10:10:00+05') * 1000)::bigint),
+  -- Invites Sara has received and not answered (Pending tab).
+  ('aaaaaaaa-0004-4000-8000-000000000004', 'aaaaaaaa-0001-4000-8000-000000000001', 'pending', (extract(epoch FROM timestamptz '2026-10-20 10:00:00+05') * 1000)::bigint),
+  ('aaaaaaaa-0005-4000-8000-000000000005', 'aaaaaaaa-0001-4000-8000-000000000001', 'pending', (extract(epoch FROM timestamptz '2026-10-20 11:00:00+05') * 1000)::bigint),
+  ('aaaaaaaa-0006-4000-8000-000000000006', 'aaaaaaaa-0001-4000-8000-000000000001', 'pending', (extract(epoch FROM timestamptz '2026-10-21 10:00:00+05') * 1000)::bigint),
+  ('aaaaaaaa-0007-4000-8000-000000000007', 'aaaaaaaa-0001-4000-8000-000000000001', 'pending', (extract(epoch FROM timestamptz '2026-10-21 11:00:00+05') * 1000)::bigint),
+  ('aaaaaaaa-0008-4000-8000-000000000008', 'aaaaaaaa-0001-4000-8000-000000000001', 'pending', (extract(epoch FROM timestamptz '2026-10-22 10:00:00+05') * 1000)::bigint),
+  -- Invites Sara has sent and nobody has answered (Sent tab).
+  ('aaaaaaaa-0001-4000-8000-000000000001', 'aaaaaaaa-0009-4000-8000-000000000009', 'pending', (extract(epoch FROM timestamptz '2026-10-19 10:00:00+05') * 1000)::bigint),
+  ('aaaaaaaa-0001-4000-8000-000000000001', 'aaaaaaaa-0010-4000-8000-000000000010', 'pending', (extract(epoch FROM timestamptz '2026-10-19 11:00:00+05') * 1000)::bigint);
 
 INSERT INTO requests (
   id, order_group_id, requester_id, card_holder_id, card_id, merchant, product_url,
@@ -196,6 +260,40 @@ INSERT INTO requests (
     'pending',
     (extract(epoch FROM timestamptz '2026-10-15 11:00:00+05') * 1000)::bigint,
     (extract(epoch FROM timestamptz '2026-10-15 11:00:00+05') * 1000)::bigint
+  ),
+  (
+    'rrrrrrrr-0005-4000-8000-000000000005',
+    'rrrrrrrr-0005-4000-8000-000000000005',
+    'aaaaaaaa-0002-4000-8000-000000000002',
+    'aaaaaaaa-0003-4000-8000-000000000003',
+    'cccccccc-0003-4000-8000-000000000001',
+    'Bata',
+    NULL,
+    'Flat 8, Askari 11, Lahore',
+    3800,
+    NULL,
+    NULL,
+    NULL,
+    'accepted',
+    (extract(epoch FROM timestamptz '2026-10-14 09:30:00+05') * 1000)::bigint,
+    (extract(epoch FROM timestamptz '2026-10-14 10:00:00+05') * 1000)::bigint
+  ),
+  (
+    'rrrrrrrr-0006-4000-8000-000000000006',
+    'rrrrrrrr-0006-4000-8000-000000000006',
+    'aaaaaaaa-0003-4000-8000-000000000003',
+    'aaaaaaaa-0002-4000-8000-000000000002',
+    'cccccccc-0002-4000-8000-000000000001',
+    'Ideas',
+    'https://www.ideas.com.pk/products/seed-lawn-3-piece',
+    'Plot 19, Johar Town, Lahore',
+    6000,
+    5100,
+    'Unstitched 3 piece, the blue print with the white dupatta. If the blue is sold out, the green is fine, but please do not take the red. Delivery before the weekend if possible.',
+    'seed/ideas-receipt.jpg',
+    'proof_submitted',
+    (extract(epoch FROM timestamptz '2026-10-14 14:00:00+05') * 1000)::bigint,
+    (extract(epoch FROM timestamptz '2026-10-14 15:30:00+05') * 1000)::bigint
   );
 
 INSERT INTO transactions (
@@ -490,7 +588,128 @@ INSERT INTO transactions (
     'cancelled_by_requester', 'Ordered the wrong colour.',
     (extract(epoch FROM timestamptz '2026-10-09 14:00:00+05') * 1000)::bigint,
     (extract(epoch FROM timestamptz '2026-10-09 16:00:00+05') * 1000)::bigint
+  ),
+  -- Zero discount: the card charge equals the price, so the share is 0. This month.
+  (
+    'tttttttt-0019-4000-8000-000000000019',
+    'aaaaaaaa-0002-4000-8000-000000000002', 'Ahmed Ali',
+    'aaaaaaaa-0003-4000-8000-000000000003', 'Bilal Hussain',
+    'Gul Ahmed', 'Flat 8, Askari 11, Lahore', 2000,
+    'cccccccc-0003-4000-8000-000000000001', 'Askari', 'Titanium',
+    2000, 0, 'seed/gulahmed-receipt.jpg', 'paid', NULL,
+    pg_temp.seed_ts(0, 1), pg_temp.seed_ts(0, 2)
+  ),
+  -- Last month, Bilal requests from Sara.
+  (
+    'tttttttt-0020-4000-8000-000000000020',
+    'aaaaaaaa-0003-4000-8000-000000000003', 'Bilal Hussain',
+    'aaaaaaaa-0001-4000-8000-000000000001', 'Sara Khan',
+    'Alkaram Studio', 'Plot 19, Johar Town, Lahore', 8200,
+    'cccccccc-0001-4000-8000-000000000001', 'HBL', 'Gold',
+    6500, 340, 'seed/alkaram-receipt.jpg', 'paid', NULL,
+    pg_temp.seed_ts(-1, 140), pg_temp.seed_ts(-1, 150)
+  ),
+  -- Cancelled by the requester this month.
+  (
+    'tttttttt-0021-4000-8000-000000000021',
+    'aaaaaaaa-0001-4000-8000-000000000001', 'Sara Khan',
+    'aaaaaaaa-0003-4000-8000-000000000003', 'Bilal Hussain',
+    'Ideas', 'House 12, Street 4, DHA Phase 5, Lahore', 3000,
+    'cccccccc-0003-4000-8000-000000000002', 'Faysal Bank', 'Classic',
+    NULL, NULL, NULL, 'cancelled_by_requester', 'Decided I do not need it any more.',
+    pg_temp.seed_ts(0, 1), pg_temp.seed_ts(0, 3)
+  ),
+  -- Large basket, this month.
+  (
+    'tttttttt-0022-4000-8000-000000000022',
+    'aaaaaaaa-0001-4000-8000-000000000001', 'Sara Khan',
+    'aaaaaaaa-0002-4000-8000-000000000002', 'Ahmed Ali',
+    'Khaadi', 'House 12, Street 4, DHA Phase 5, Lahore', 12000,
+    'cccccccc-0002-4000-8000-000000000002', 'MCB', 'Signature',
+    9800, 440, 'seed/khaadi-big-receipt.jpg', 'paid', NULL,
+    pg_temp.seed_ts(0, 2), pg_temp.seed_ts(0, 4)
+  ),
+  -- Cancelled by the holder last month.
+  (
+    'tttttttt-0023-4000-8000-000000000023',
+    'aaaaaaaa-0003-4000-8000-000000000003', 'Bilal Hussain',
+    'aaaaaaaa-0002-4000-8000-000000000002', 'Ahmed Ali',
+    'Limelight', 'Plot 19, Johar Town, Lahore', 5400,
+    'cccccccc-0002-4000-8000-000000000002', 'MCB', 'Signature',
+    NULL, NULL, NULL, 'cancelled_by_holder', 'My card was blocked for the day.',
+    pg_temp.seed_ts(-1, 200), pg_temp.seed_ts(-1, 203)
+  ),
+  -- Oldest paid row, August.
+  (
+    'tttttttt-0024-4000-8000-000000000024',
+    'aaaaaaaa-0002-4000-8000-000000000002', 'Ahmed Ali',
+    'aaaaaaaa-0003-4000-8000-000000000003', 'Bilal Hussain',
+    'Outfitters', 'Flat 8, Askari 11, Lahore', 3000,
+    'cccccccc-0003-4000-8000-000000000001', 'Askari', 'Titanium',
+    2700, 60, 'seed/outfitters-receipt.jpg', 'paid', NULL,
+    (extract(epoch FROM timestamptz '2026-08-20 12:00:00+05') * 1000)::bigint,
+    (extract(epoch FROM timestamptz '2026-08-21 10:00:00+05') * 1000)::bigint
+  ),
+  -- Bilal's JS Bank card earns, this month.
+  (
+    'tttttttt-0025-4000-8000-000000000025',
+    'aaaaaaaa-0001-4000-8000-000000000001', 'Sara Khan',
+    'aaaaaaaa-0003-4000-8000-000000000003', 'Bilal Hussain',
+    'Sapphire', 'House 12, Street 4, DHA Phase 5, Lahore', 7000,
+    'cccccccc-0003-4000-8000-000000000003', 'JS Bank', 'Gold',
+    6000, 200, 'seed/sapphire-js-receipt.jpg', 'paid', NULL,
+    pg_temp.seed_ts(0, 3), pg_temp.seed_ts(0, 5)
+  ),
+  -- Unpaid this month: Ahmed holds, Bilal pays.
+  (
+    'tttttttt-0026-4000-8000-000000000026',
+    'aaaaaaaa-0003-4000-8000-000000000003', 'Bilal Hussain',
+    'aaaaaaaa-0002-4000-8000-000000000002', 'Ahmed Ali',
+    'Breeze', 'Plot 19, Johar Town, Lahore', 4400,
+    'cccccccc-0002-4000-8000-000000000001', 'UBL', 'Platinum',
+    3900, 100, 'seed/breeze-receipt.jpg', 'unpaid', NULL,
+    pg_temp.seed_ts(0, 2), pg_temp.seed_ts(0, 6)
+  ),
+  -- Paid this month on Sara's Standard Chartered card, Ahmed requests.
+  (
+    'tttttttt-0027-4000-8000-000000000027',
+    'aaaaaaaa-0002-4000-8000-000000000002', 'Ahmed Ali',
+    'aaaaaaaa-0001-4000-8000-000000000001', 'Sara Khan',
+    'Nishat Linen', 'Flat 8, Askari 11, Lahore', 5500,
+    'cccccccc-0001-4000-8000-000000000003', 'Standard Chartered', 'Platinum',
+    4500, 200, 'seed/nishat-receipt.jpg', 'paid', NULL,
+    pg_temp.seed_ts(0, 4), pg_temp.seed_ts(0, 7)
   );
+
+-- Two short messages on each new closed order. The holder speaks first, except where
+-- the requester cancelled. Ids are built from the order id so they stay unique.
+INSERT INTO chat_messages (id, thread_id, sender_id, chat_message, attachment_path, created_at)
+SELECT
+  'nnnnnnnn-' || substr(t.id, 10, 4) || '-4000-8000-00000000000' || m.k,
+  t.id,
+  CASE
+    WHEN (m.k = 1) = (t.txn_status <> 'cancelled_by_requester') THEN t.card_holder_id
+    ELSE t.requester_id
+  END,
+  CASE
+    WHEN m.k = 1 AND t.txn_status IN ('paid', 'unpaid')
+      THEN 'The card was charged PKR ' || t.actual_amount_paid || '. Receipt is on the order.'
+    WHEN m.k = 1 THEN 'Cancelling this one. ' || t.cancel_reason
+    WHEN t.txn_status = 'paid' THEN 'Received. Thank you.'
+    WHEN t.txn_status = 'unpaid' THEN 'I will send it soon.'
+    ELSE 'No problem.'
+  END,
+  NULL,
+  t.updated_at - 600000 + (m.k * 60000)
+FROM transactions t
+CROSS JOIN (VALUES (1), (2)) AS m(k)
+WHERE t.id IN (
+  'tttttttt-0019-4000-8000-000000000019', 'tttttttt-0020-4000-8000-000000000020',
+  'tttttttt-0021-4000-8000-000000000021', 'tttttttt-0022-4000-8000-000000000022',
+  'tttttttt-0023-4000-8000-000000000023', 'tttttttt-0024-4000-8000-000000000024',
+  'tttttttt-0025-4000-8000-000000000025', 'tttttttt-0026-4000-8000-000000000026',
+  'tttttttt-0027-4000-8000-000000000027'
+);
 
 -- Daraz proof thread: 33 messages, newest at the end. One of them is a photo.
 INSERT INTO chat_messages (id, thread_id, sender_id, chat_message, attachment_path, created_at)
@@ -545,6 +764,16 @@ INSERT INTO chat_messages (id, thread_id, sender_id, chat_message, attachment_pa
   ('mmmmmmmm-0002-4000-8000-000000000002', 'rrrrrrrr-0002-4000-8000-000000000002', 'aaaaaaaa-0001-4000-8000-000000000001', 'I will shop this evening.', NULL, (extract(epoch FROM timestamptz '2026-10-13 16:25:00+05') * 1000)::bigint),
   ('mmmmmmmm-0002-4000-8000-000000000003', 'rrrrrrrr-0002-4000-8000-000000000002', 'aaaaaaaa-0002-4000-8000-000000000002', 'Size medium, and the receipt when you are done.', NULL, (extract(epoch FROM timestamptz '2026-10-13 16:40:00+05') * 1000)::bigint),
   ('mmmmmmmm-0002-4000-8000-000000000004', 'rrrrrrrr-0002-4000-8000-000000000002', 'aaaaaaaa-0001-4000-8000-000000000001', 'Noted.', NULL, (extract(epoch FROM timestamptz '2026-10-13 16:55:00+05') * 1000)::bigint),
+
+  ('mmmmmmmm-0021-4000-8000-000000000001', 'rrrrrrrr-0005-4000-8000-000000000005', 'aaaaaaaa-0002-4000-8000-000000000002', 'Hi Bilal, can you get this on your Askari card?', NULL, (extract(epoch FROM timestamptz '2026-10-14 10:01:00+05') * 1000)::bigint),
+  ('mmmmmmmm-0021-4000-8000-000000000002', 'rrrrrrrr-0005-4000-8000-000000000005', 'aaaaaaaa-0003-4000-8000-000000000003', 'Yes, I will do it tomorrow.', NULL, (extract(epoch FROM timestamptz '2026-10-14 10:10:00+05') * 1000)::bigint),
+  ('mmmmmmmm-0021-4000-8000-000000000003', 'rrrrrrrr-0005-4000-8000-000000000005', 'aaaaaaaa-0002-4000-8000-000000000002', 'Great. Size 42 please.', NULL, (extract(epoch FROM timestamptz '2026-10-14 10:20:00+05') * 1000)::bigint),
+  ('mmmmmmmm-0021-4000-8000-000000000004', 'rrrrrrrr-0005-4000-8000-000000000005', 'aaaaaaaa-0002-4000-8000-000000000002', 'And keep the receipt.', NULL, (extract(epoch FROM timestamptz '2026-10-14 10:21:00+05') * 1000)::bigint),
+
+  ('mmmmmmmm-0022-4000-8000-000000000001', 'rrrrrrrr-0006-4000-8000-000000000006', 'aaaaaaaa-0003-4000-8000-000000000003', 'Please use the UBL platinum card for this.', NULL, (extract(epoch FROM timestamptz '2026-10-14 14:10:00+05') * 1000)::bigint),
+  ('mmmmmmmm-0022-4000-8000-000000000002', 'rrrrrrrr-0006-4000-8000-000000000006', 'aaaaaaaa-0002-4000-8000-000000000002', 'Done. Paid 5100.', NULL, (extract(epoch FROM timestamptz '2026-10-14 15:20:00+05') * 1000)::bigint),
+  ('mmmmmmmm-0022-4000-8000-000000000003', 'rrrrrrrr-0006-4000-8000-000000000006', 'aaaaaaaa-0002-4000-8000-000000000002', 'Uploaded the receipt, please check.', NULL, (extract(epoch FROM timestamptz '2026-10-14 15:30:00+05') * 1000)::bigint),
+  ('mmmmmmmm-0022-4000-8000-000000000004', 'rrrrrrrr-0006-4000-8000-000000000006', 'aaaaaaaa-0003-4000-8000-000000000003', 'Checking now.', NULL, (extract(epoch FROM timestamptz '2026-10-14 15:40:00+05') * 1000)::bigint),
 
   ('mmmmmmmm-0001-4000-8000-000000000001', 'tttttttt-0001-4000-8000-000000000001', 'aaaaaaaa-0002-4000-8000-000000000002', 'Paid 4900 at Sapphire. Send me that when you can.', NULL, (extract(epoch FROM timestamptz '2026-10-08 18:05:00+05') * 1000)::bigint),
   ('mmmmmmmm-0001-4000-8000-000000000002', 'tttttttt-0001-4000-8000-000000000001', 'aaaaaaaa-0001-4000-8000-000000000001', 'I will send 4900 tomorrow morning.', NULL, (extract(epoch FROM timestamptz '2026-10-08 18:20:00+05') * 1000)::bigint),
@@ -618,6 +847,22 @@ INSERT INTO chat_reads (user_id, thread_id, last_read_at) VALUES
     'aaaaaaaa-0001-4000-8000-000000000001',
     'rrrrrrrr-0002-4000-8000-000000000002',
     (extract(epoch FROM timestamptz '2026-10-13 16:55:00+05') * 1000)::bigint
+  ),
+  -- Bata: Ahmed has read Bilal's reply only up to message 1, so Bilal's message 2 is unread (1).
+  -- Bilal has no row, so Ahmed's messages 1, 3 and 4 are unread (3).
+  (
+    'aaaaaaaa-0002-4000-8000-000000000002',
+    'rrrrrrrr-0005-4000-8000-000000000005',
+    (extract(epoch FROM timestamptz '2026-10-14 10:01:00+05') * 1000)::bigint
+  ),
+  -- Ideas: Ahmed has read up to his own message 3, so Bilal's message 4 is unread (1).
+  -- Bilal has no row, so Ahmed's messages 2 and 3 are unread (2).
+  (
+    'aaaaaaaa-0002-4000-8000-000000000002',
+    'rrrrrrrr-0006-4000-8000-000000000006',
+    (extract(epoch FROM timestamptz '2026-10-14 15:30:00+05') * 1000)::bigint
   );
+
+DROP FUNCTION pg_temp.seed_ts(int, int);
 
 COMMIT;

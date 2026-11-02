@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   hero: {
-    backgroundColor: theme.colors.bg2,
+    backgroundColor: theme.colors.greenDim,
     borderRadius: theme.radius.card,
     borderWidth: 0.5,
     borderColor: theme.colors.border,
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
   kicker: {
     fontFamily: theme.fonts.bodyMedium,
     fontSize: theme.fontSize.small,
-    color: theme.colors.text3,
+    color: theme.colors.text2,
     letterSpacing: 1,
     marginBottom: theme.spacing.sm,
   },
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
   },
   tile: {
     flex: 1,
-    backgroundColor: theme.colors.bg2,
+    backgroundColor: theme.colors.greenDim,
     borderRadius: theme.radius.card,
     borderWidth: 0.5,
     borderColor: theme.colors.border,

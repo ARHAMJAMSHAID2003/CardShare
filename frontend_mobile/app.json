@@ -40,7 +40,7 @@
       [
         "expo-contacts",
         {
-          "contactsPermission": "CardShare uses your contacts to show the name you saved for someone."
+          "contactsPermission": "CardShare compares invite numbers with your contacts, on your phone, to show the name you saved for someone. Contact names stay on your phone until you accept an invite."
         }
       ]
     ],

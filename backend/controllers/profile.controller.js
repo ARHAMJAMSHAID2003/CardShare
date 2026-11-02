@@ -52,7 +52,9 @@ const findUserByPhone = async (req, res) => {
       [String(phone).trim()]
     );
 
-    if (!rows[0].result) {
+    // An account that has not finished setup has no name yet, so it cannot be invited.
+    const found = rows[0].result;
+    if (!found || !found.display_name || String(found.display_name).trim() === '') {
       return res.status(404).json({ error: 'No user found with that phone number.' });
     }
 

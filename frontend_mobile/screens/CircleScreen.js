@@ -1,34 +1,28 @@
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
 import { cancelCircleInvite, getCircle, respondToCircleInvite, removeFromCircle } from '../api/circle';
+import ConfirmDialog from '../components/ConfirmDialog';
 import EmptyState from '../components/EmptyState';
 import ErrorBanner from '../components/ErrorBanner';
 import { CircleEmpty } from '../components/HomeParts';
+import { ContactCheckRow, InviteGroup } from '../components/InviteLists';
 import ListCard from '../components/ListCard';
 import LoadingState from '../components/LoadingState';
 import ScreenShell from '../components/ScreenShell';
 import TopBar from '../components/TopBar';
-import ConfirmDialog from '../components/ConfirmDialog';
 import theme from '../constants/theme';
 import { useSession } from '../context/SessionContext';
 import { useToast } from '../context/ToastContext';
+import { useContactCheck } from '../hooks/useContactCheck';
 import { openScreen } from '../navigation/openScreen';
 import { queryClient } from '../queries/client';
 import { useScreenQuery } from '../queries/useScreenQuery';
-import { contactNamesByPhone } from '../utils/deviceContacts';
 import { asList } from '../utils/format';
 import { normalizePhone } from '../utils/phone';
 
-function shownName(member, localNames) {
-  if (member.contact_name) return member.contact_name;
-  if (member.c_status === 'pending' && !member.is_sender) {
-    const local = localNames[normalizePhone(member.phone)];
-    if (local) return local;
-  }
-  return member.display_name || 'Unknown';
-}
+const FILTERS = [['circle', 'Circle'], ['pending', 'Pending'], ['sent', 'Sent']];
 
 function CrossIcon() {
   return (
@@ -56,74 +50,68 @@ function TickIcon() {
   );
 }
 
-function circleBadge(member) {
-  if (member.c_status === 'pending' && member.is_sender) return { label: 'Sent', variant: 'amber' };
-  return null;
+// Your own name for them if you saved one, then the name they chose, then a fallback.
+function accountName(member) {
+  return member.contact_name || member.display_name || 'Unknown';
 }
 
 export default function CircleScreen() {
   const navigation = useNavigation();
   const route = useRoute();
+  const focused = useIsFocused();
   const { sessionId, user } = useSession();
   const showToast = useToast();
   const [workingId, setWorkingId] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [actionError, setActionError] = useState('');
-  const [localNames, setLocalNames] = useState({});
   const [filter, setFilter] = useState('circle');
 
   useEffect(() => {
-    if (route.params?.filter === 'pending' || route.params?.filter === 'circle') {
-      setFilter(route.params.filter);
-    }
+    const wanted = route.params?.filter;
+    if (wanted === 'pending' || wanted === 'circle' || wanted === 'sent') setFilter(wanted);
   }, [route.params?.filter, route.params?.at]);
 
   const circle = useScreenQuery(
     ['circle', user?.id],
-    async ({ signal, client }) => {
-      try {
-        const rows = await getCircle(sessionId, user.id, { signal });
-        return asList(rows);
-      } catch (err) {
-        if (signal?.aborted) throw err;
-        const previous = client.getQueryData(['circle', user.id]);
-        if (previous) throw err;
-        throw err;
-      }
-    }
+    async ({ signal }) => asList(await getCircle(sessionId, user.id, { signal }))
   );
   const members = circle.data || [];
-  const incoming = members.some((member) => member.c_status === 'pending' && !member.is_sender);
-  const visible = members.filter((member) => (
-    filter === 'pending' ? member.c_status === 'pending' : member.c_status === 'accepted'
-  ));
+  const accepted = members.filter((member) => member.c_status === 'accepted');
+  const received = members.filter((member) => member.c_status === 'pending' && !member.is_sender);
+  const sent = members.filter((member) => member.c_status === 'pending' && member.is_sender);
   const error = actionError || (circle.data ? '' : circle.errorMessage) || (circle.isError ? circle.errorMessage : '');
 
-  useEffect(() => {
-    const phones = (circle.data || [])
-      .filter((member) => member.c_status === 'pending' && !member.is_sender && !member.contact_name)
-      .map((member) => member.phone);
-    if (!phones.length) return undefined;
-    let cancelled = false;
-    contactNamesByPhone(phones)
-      .then((names) => {
-        if (!cancelled) setLocalNames(names);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [circle.data]);
+  const contacts = useContactCheck(
+    user?.id,
+    circle.data ? received.map((member) => normalizePhone(member.phone)) : null,
+    focused
+  );
 
-  const respond = async (friendId, status, contactName) => {
-    setWorkingId(friendId);
+  // Each received invite sits in one list. A saved result is final, so it never moves.
+  const inContacts = [];
+  const outOfContacts = [];
+  const unchecked = [];
+  received.forEach((member) => {
+    const key = normalizePhone(member.phone);
+    if (!(key in contacts.results)) unchecked.push(member);
+    else if (contacts.results[key]) inContacts.push({ member, name: contacts.results[key] });
+    else outOfContacts.push(member);
+  });
+
+  const invalidate = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['circle', user.id] });
+    await queryClient.invalidateQueries({ queryKey: ['circle-cards', user.id] });
+  };
+
+  const respond = async (member, status, savedName) => {
+    setWorkingId(member.id);
     setActionError('');
     try {
-      await respondToCircleInvite(sessionId, user.id, friendId, status, contactName);
+      await respondToCircleInvite(sessionId, user.id, member.id, status, savedName || null);
+      contacts.forget(normalizePhone(member.phone));
       setConfirm(null);
       showToast(status === 'accepted' ? 'Invite accepted' : 'Invite declined');
-      await queryClient.invalidateQueries({ queryKey: ['circle', user.id] });
-      await queryClient.invalidateQueries({ queryKey: ['circle-cards', user.id] });
+      await invalidate();
     } catch (err) {
       setActionError(err.message);
     } finally {
@@ -131,40 +119,201 @@ export default function CircleScreen() {
     }
   };
 
-  const cancel = async (friendId) => {
-    setWorkingId(friendId);
+  const cancel = async (member) => {
+    setWorkingId(member.id);
     setActionError('');
     try {
-      await cancelCircleInvite(sessionId, user.id, friendId);
+      await cancelCircleInvite(sessionId, user.id, member.id);
       showToast('Invite cancelled');
       setConfirm(null);
-      await queryClient.invalidateQueries({ queryKey: ['circle', user.id] });
-      await queryClient.invalidateQueries({ queryKey: ['circle-cards', user.id] });
+      await invalidate();
     } catch (err) {
       setConfirm(null);
       setActionError(err.message);
-      await queryClient.invalidateQueries({ queryKey: ['circle', user.id] });
-      await queryClient.invalidateQueries({ queryKey: ['circle-cards', user.id] });
+      await invalidate();
     } finally {
       setWorkingId(null);
     }
   };
 
-  const remove = async (friendId) => {
-    setWorkingId(friendId);
+  const remove = async (member) => {
+    setWorkingId(member.id);
     setActionError('');
     try {
-      await removeFromCircle(sessionId, user.id, friendId);
+      await removeFromCircle(sessionId, user.id, member.id);
       showToast('Removed from circle');
       setConfirm(null);
-      await queryClient.invalidateQueries({ queryKey: ['circle', user.id] });
-      await queryClient.invalidateQueries({ queryKey: ['circle-cards', user.id] });
+      await invalidate();
     } catch (err) {
       setActionError(err.message);
     } finally {
       setWorkingId(null);
     }
   };
+
+  const toggleContacts = async () => {
+    const outcome = await contacts.toggle();
+    if (outcome === 'blocked') {
+      Alert.alert(
+        'Contacts access is off',
+        'Your phone will not ask again. Allow Contacts for CardShare in Settings.',
+        [
+          { text: 'Not now', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings().catch(() => {}) },
+        ]
+      );
+    } else if (outcome === 'denied') {
+      showToast('Contacts check stays off');
+    }
+  };
+
+  // savedName is set only for rows in "In your contacts". It is the name sent when accepting.
+  const receivedRow = (member, name, savedName = null) => (
+    <ListCard
+      key={member.id}
+      title={name}
+      subtitle={member.phone || ''}
+      action={(
+        <View style={styles.rowActions}>
+          <Pressable
+            style={styles.tick}
+            hitSlop={8}
+            disabled={workingId === member.id}
+            onPress={() => respond(member, 'accepted', savedName)}
+            accessibilityRole="button"
+            accessibilityLabel="Accept invite"
+          >
+            <TickIcon />
+          </Pressable>
+          <Pressable
+            hitSlop={8}
+            disabled={workingId === member.id}
+            onPress={() =>
+              setConfirm({
+                title: 'Decline this invite?',
+                body: `${name} will not join your circle.`,
+                confirmLabel: 'Decline',
+                onConfirm: () => respond(member, 'declined'),
+              })
+            }
+            accessibilityRole="button"
+            accessibilityLabel="Decline invite"
+          >
+            <CrossIcon />
+          </Pressable>
+        </View>
+      )}
+    />
+  );
+
+  let body;
+  if (circle.showLoading) {
+    body = <LoadingState />;
+  } else if (filter === 'circle') {
+    body = accepted.length === 0 && !error ? (
+      <CircleEmpty
+        title="No one in your circle yet"
+        text="Add someone you trust by their phone number. Invites you send or receive show up here."
+        button="Add someone"
+        onPress={() => openScreen(navigation, 'add-circle')}
+      />
+    ) : (
+      accepted.map((member) => {
+        const name = accountName(member);
+        return (
+          <ListCard
+            key={member.id}
+            title={name}
+            subtitle={member.phone || ''}
+            action={(
+              <Pressable
+                style={styles.bin}
+                hitSlop={8}
+                disabled={workingId === member.id}
+                onPress={() =>
+                  setConfirm({
+                    title: 'Remove from circle?',
+                    body: `${name} will no longer share cards with you.`,
+                    confirmLabel: 'Remove',
+                    onConfirm: () => remove(member),
+                  })
+                }
+                accessibilityRole="button"
+                accessibilityLabel="Remove"
+              >
+                <BinIcon />
+              </Pressable>
+            )}
+          />
+        );
+      })
+    );
+  } else if (filter === 'pending') {
+    body = (
+      <>
+        <ContactCheckRow
+          enabled={contacts.enabled}
+          blocked={contacts.permission === 'blocked'}
+          unavailable={contacts.permission === 'unavailable'}
+          onPress={toggleContacts}
+        />
+        {contacts.error ? (
+          <View style={styles.pad}>
+            <ErrorBanner message={contacts.error} onRetry={contacts.retry} />
+          </View>
+        ) : null}
+        {contacts.checking || !contacts.ready ? (
+          <LoadingState />
+        ) : (
+          <>
+            <InviteGroup title="In your contacts" count={inContacts.length}>
+              {inContacts.map(({ member, name }) => receivedRow(member, name, name))}
+            </InviteGroup>
+            <InviteGroup title="Not in your contacts" count={outOfContacts.length}>
+              {outOfContacts.map((member) => receivedRow(member, accountName(member)))}
+            </InviteGroup>
+            <InviteGroup title="Unchecked" count={unchecked.length}>
+              {unchecked.map((member) => receivedRow(member, accountName(member)))}
+            </InviteGroup>
+          </>
+        )}
+      </>
+    );
+  } else {
+    body = sent.length === 0 ? (
+      <View style={styles.pad}>
+        <EmptyState message="No invites sent." />
+      </View>
+    ) : (
+      sent.map((member) => (
+        <ListCard
+          key={member.id}
+          title={accountName(member)}
+          subtitle={member.phone || ''}
+          badgeLabel="Sent"
+          badgeVariant="amber"
+          action={(
+            <Pressable
+              hitSlop={8}
+              disabled={workingId === member.id}
+              onPress={() =>
+                setConfirm({
+                  title: 'Cancel this invite?',
+                  body: `${accountName(member)} will not be asked to join your circle.`,
+                  confirmLabel: 'Cancel invite',
+                  onConfirm: () => cancel(member),
+                })
+              }
+              accessibilityRole="button"
+              accessibilityLabel="Cancel invite"
+            >
+              <CrossIcon />
+            </Pressable>
+          )}
+        />
+      ))
+    );
+  }
 
   return (
     <ScreenShell
@@ -178,9 +327,9 @@ export default function CircleScreen() {
         onAction={() => openScreen(navigation, 'add-circle')}
       />
       <View style={styles.filters}>
-        {[['circle', 'Circle'], ['pending', 'Pending']].map(([id, label]) => {
+        {FILTERS.map(([id, label]) => {
           const selected = filter === id;
-          const mark = id === 'pending' && incoming;
+          const mark = id === 'pending' && received.length > 0;
           return (
             <Pressable
               key={id}
@@ -202,107 +351,7 @@ export default function CircleScreen() {
           );
         })}
       </View>
-      {circle.showLoading ? (
-        <LoadingState />
-      ) : visible.length === 0 && !error ? (
-        filter === 'pending' ? (
-          <View style={styles.pad}>
-            <EmptyState message="No pending invites." />
-          </View>
-        ) : (
-          <CircleEmpty
-            title="No one in your circle yet"
-            text="Add someone you trust by their phone number. Invites you send or receive show up here."
-            button="Add someone"
-            onPress={() => openScreen(navigation, 'add-circle')}
-          />
-        )
-      ) : (
-        visible.map((member) => {
-          const badge = circleBadge(member);
-          const pendingReceived = member.c_status === 'pending' && !member.is_sender;
-          const pendingSent = member.c_status === 'pending' && member.is_sender;
-          const name = shownName(member, localNames);
-          return (
-            <View key={member.id}>
-              <ListCard
-                title={name}
-                subtitle={member.phone || ''}
-                badgeLabel={badge?.label}
-                badgeVariant={badge?.variant}
-                action={member.c_status === 'accepted' ? (
-                  <Pressable
-                    style={styles.bin}
-                    hitSlop={8}
-                    disabled={workingId === member.id}
-                    onPress={() =>
-                      setConfirm({
-                        title: 'Remove from circle?',
-                        body: `${name} will no longer share cards with you.`,
-                        confirmLabel: 'Remove',
-                        onConfirm: () => remove(member.id),
-                      })
-                    }
-                    accessibilityRole="button"
-                    accessibilityLabel="Remove"
-                  >
-                    <BinIcon />
-                  </Pressable>
-                ) : pendingSent ? (
-                  <Pressable
-                    hitSlop={8}
-                    disabled={workingId === member.id}
-                    onPress={() =>
-                      setConfirm({
-                        title: 'Cancel this invite?',
-                        body: `${name} will not be asked to join your circle.`,
-                        confirmLabel: 'Cancel invite',
-                        onConfirm: () => cancel(member.id),
-                      })
-                    }
-                    accessibilityRole="button"
-                    accessibilityLabel="Cancel invite"
-                  >
-                    <CrossIcon />
-                  </Pressable>
-                ) : pendingReceived ? (
-                  <View style={styles.rowActions}>
-                    <Pressable
-                      style={styles.tick}
-                      hitSlop={8}
-                      disabled={workingId === member.id}
-                      onPress={async () => {
-                        const names = await contactNamesByPhone([member.phone]);
-                        respond(member.id, 'accepted', names[normalizePhone(member.phone)] || null);
-                      }}
-                      accessibilityRole="button"
-                      accessibilityLabel="Accept invite"
-                    >
-                      <TickIcon />
-                    </Pressable>
-                    <Pressable
-                      hitSlop={8}
-                      disabled={workingId === member.id}
-                      onPress={() =>
-                        setConfirm({
-                          title: 'Decline this invite?',
-                          body: `${name} will not join your circle.`,
-                          confirmLabel: 'Decline',
-                          onConfirm: () => respond(member.id, 'declined'),
-                        })
-                      }
-                      accessibilityRole="button"
-                      accessibilityLabel="Decline invite"
-                    >
-                      <CrossIcon />
-                    </Pressable>
-                  </View>
-                ) : null}
-              />
-            </View>
-          );
-        })
-      )}
+      {body}
       <View style={styles.pad}>
         <ErrorBanner message={error} onRetry={() => circle.refetch()} />
       </View>

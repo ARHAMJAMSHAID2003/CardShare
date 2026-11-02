@@ -3,6 +3,7 @@ import { setUnauthorizedHandler } from '../api/client';
 import { logout as logoutApi } from '../api/auth';
 import { clearChatCache } from './clearChatCache';
 import { clearAccountQueries } from '../queries/client';
+import { clearContactCheck } from '../utils/contactCheck';
 import { clearStoredSession, readStoredSession, writeStoredSession } from '../utils/sessionStore';
 
 const SessionContext = createContext(null);
@@ -14,6 +15,7 @@ export function SessionProvider({ children, onRequireLogin }) {
   const clearSession = useCallback(async () => {
     await clearAccountQueries();
     clearChatCache();
+    await clearContactCheck();
     setSession(null);
     await clearStoredSession();
   }, []);

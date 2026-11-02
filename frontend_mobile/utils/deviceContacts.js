@@ -24,13 +24,39 @@ function fullNumber(value) {
   return phone;
 }
 
+// Where the phone's contacts permission stands, without asking:
+//   granted      can read contacts
+//   ask          never decided, the phone will show its prompt
+//   blocked      refused and the phone will not ask again
+//   unavailable  no contacts on this device (web)
+export async function contactsPermission() {
+  if (Platform.OS === 'web') return 'unavailable';
+  try {
+    const current = await getPermissionsAsync();
+    if (current.granted) return 'granted';
+    return current.canAskAgain ? 'ask' : 'blocked';
+  } catch {
+    return 'unavailable';
+  }
+}
+
+// Shows the phone's own prompt. Returns the new state, same words as above.
+export async function requestContactsPermission() {
+  if (Platform.OS === 'web') return 'unavailable';
+  try {
+    const next = await requestPermissionsAsync();
+    if (next.granted) return 'granted';
+    return next.canAskAgain ? 'ask' : 'blocked';
+  } catch {
+    return 'unavailable';
+  }
+}
+
 async function allowContacts() {
-  if (Platform.OS === 'web') return false;
-  const current = await getPermissionsAsync();
-  if (current.granted) return true;
-  if (!current.canAskAgain) return false;
-  const next = await requestPermissionsAsync();
-  return next.granted;
+  const state = await contactsPermission();
+  if (state === 'granted') return true;
+  if (state !== 'ask') return false;
+  return (await requestContactsPermission()) === 'granted';
 }
 
 export async function pickContact() {
@@ -45,14 +71,17 @@ export async function pickContact() {
   return { phone, name: realContactName(details) };
 }
 
-export async function contactNamesByPhone(phones) {
+// Compares these numbers with the contacts and returns phone -> saved name, or null.
+// Never shows a permission prompt. Throws if contacts cannot be read, so the caller
+// can leave those numbers unchecked instead of marking them "not in your contacts".
+export async function checkNumbersAgainstContacts(phones) {
   const wanted = [...new Set(phones.map(fullNumber).filter(Boolean))];
-  if (!wanted.length) return {};
-  const allowed = await allowContacts();
-  if (!allowed) return {};
+  const found = {};
+  wanted.forEach((phone) => { found[phone] = null; });
+  if (!wanted.length) return found;
+  if ((await contactsPermission()) !== 'granted') throw new Error('Contacts access is off.');
   const rows = await Contact.getAllDetails(NAME_FIELDS);
   const pending = new Set(wanted);
-  const found = {};
   for (const contact of rows || []) {
     const name = realContactName(contact);
     if (!name) continue;
