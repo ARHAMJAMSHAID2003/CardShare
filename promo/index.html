@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#081512">
+<title>CardShare — Your cards. Your circle.</title><link rel="icon" href="data:,"><link rel="stylesheet" href="./styles.css">
+<script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/","gsap":"./node_modules/gsap/index.js"}}</script>
+</head><body><main class="studio">
+<header class="studio-header"><span>CardShare <span class="muted">/ The product film</span></span><span class="edition">44 SECONDS · PICTURE + SOUND</span></header>
+<div class="viewing-room">
+<aside class="director-note"><span class="eyebrow">YOUR CARDS. YOUR CIRCLE.</span><h1>More value.<br><em>Together.</em></h1><p>The real CardShare experience.<br>From your cards to your next connection.</p><div class="note-rule"></div><p class="source-note">Built from your supplied app screens.<br>Press Play, then enable sound.</p></aside>
+<div class="film-wrap"><section id="film" aria-label="44-second CardShare product film"><div id="stage-space">
+<div id="environment"></div><div id="halo"></div><div id="orbit"></div><canvas id="world" aria-hidden="true"></canvas>
+<div id="masthead"><span>CardShare</span><span id="chapter-label">YOUR CARDS. YOUR CIRCLE.</span></div>
+<div id="intro" class="hero-copy"><span class="eyebrow">CARDSHARE</span><h2><span class="line">Use their card</span><span class="line">discounts.</span><span class="line green">Make money</span><span class="line green">from yours.</span></h2></div>
+<div id="headings">
+<div id="heading-cards" class="heading"><span class="eyebrow">01 / YOUR CARDS</span><h2><span class="line">Your cards.</span><span class="line green">Your rewards.</span></h2></div>
+<div id="heading-circle" class="heading"><span class="eyebrow">02 / YOUR CIRCLE</span><h2><span class="line">Find the</span><span class="line green">right card.</span></h2></div>
+<div id="heading-history" class="heading"><span class="eyebrow">03 / YOUR ACTIVITY</span><h2><span class="line">Every order.</span><span class="line green">In one place.</span></h2></div>
+<div id="heading-order" class="heading"><span class="eyebrow">04 / THE DETAILS</span><h2><span class="line">See the proof.</span><span class="line green">See the saving.</span></h2></div>
+<div id="heading-chat" class="heading"><span class="eyebrow">05 / CHAT</span><h2><span class="line">Keep the</span><span class="line green">conversation close.</span></h2></div>
+<div id="heading-benefit" class="heading"><span class="eyebrow">06 / SHARED BENEFITS</span><h2><span class="line">You save.</span><span class="line green">They earn.</span></h2></div>
+</div>
+<div id="device"><div class="device-back"></div><div class="device-edge"></div><div class="device-face"><div id="screen"><canvas id="app-screen" width="720" height="1100" aria-label="Original CardShare app screenshots"></canvas><div id="touch"><i></i></div></div></div></div>
+<div id="benefit-art"><div id="saved-art" class="source-crop" data-crop="37,182,646,376"><img src="./assets/app/13.jpg" alt="Actual requester savings history: PKR 4,640 lifetime saved"></div><div id="earned-art" class="source-crop" data-crop="37,182,646,376"><img src="./assets/app/14.jpg" alt="Actual cardholder history: PKR 760 lifetime earned"></div><p>From the app’s history</p></div>
+<div id="finale"><span class="eyebrow">CARDSHARE</span><h2><span class="line">Use their card</span><span class="line">discounts.</span><span class="line green">Make money</span><span class="line green">from yours.</span></h2><div class="source-crop" id="actual-cta" data-crop="37,1105,646,105"><img src="./assets/app/01.jpg" alt="Get started"></div></div>
+<div id="progress"><i></i></div><div id="blackout"></div>
+</div></section>
+<div class="player"><div class="transport"><button id="play-toggle" aria-label="Play film">Play</button><button id="replay" aria-label="Replay film">↺</button><span id="timecode">00.0 / 44.0</span><button id="sound-toggle" aria-label="Enable soundtrack" aria-pressed="false">Sound off</button><button id="fullscreen" aria-label="Full screen">⛶</button></div><input id="scrubber" type="range" min="0" max="44" step="0.001" value="0" aria-label="Film timeline"></div>
+</div>
+<aside class="chapter-list"><span class="eyebrow">THE JOURNEY</span><button data-seek="0">01 <span>The idea</span><time>00:00</time></button><button data-seek="4.8">02 <span>Your cards</span><time>00:04</time></button><button data-seek="10.5">03 <span>Your circle</span><time>00:10</time></button><button data-seek="18.5">04 <span>Your history</span><time>00:18</time></button><button data-seek="21">05 <span>Order details</span><time>00:20</time></button><button data-seek="28">06 <span>Conversation</span><time>00:27</time></button><button data-seek="34">07 <span>Shared benefits</span><time>00:32</time></button><button data-seek="41">08 <span>Get started</span><time>00:38</time></button><p>Space to play / pause<br>← → to move through the film<br>M to enable sound</p></aside>
+</div><footer><span>CARDSHARE / PRODUCT FILM</span><span id="load-status" role="status">Preparing picture & sound…</span></footer></main>
+<div id="source-assets" hidden>
+<img id="source-01" src="./assets/app/01.jpg" alt="Original splash screen and brand mark"><img id="source-03" src="./assets/app/03.jpg" alt="Cardholder dashboard"><img id="source-04" src="./assets/app/04.jpg" alt="Cardholder dashboard scrolled"><img id="source-05" src="./assets/app/05.jpg" alt="Requester dashboard"><img id="source-06" src="./assets/app/06.jpg" alt="Requester dashboard scrolled"><img id="source-10" src="./assets/app/10.jpg" alt="Account menu"><img id="source-13" src="./assets/app/13.jpg" alt="Requester history"><img id="source-14" src="./assets/app/14.jpg" alt="Cardholder history"><img id="source-15" src="./assets/app/15.jpg" alt="Chat"><img id="source-16" src="./assets/app/16.jpg" alt="Daraz order details">
+</div><audio id="soundtrack" src="./assets/soundtrack.wav" preload="auto"></audio><script type="module" src="./src/main.js"></script>
+</body></html>

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#070a09">
+  <title>CardShare — One connection.</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230c1712'/%3E%3Crect x='10' y='15' width='35' height='26' rx='5' fill='none' stroke='%231ad88a' stroke-width='3'/%3E%3Crect x='22' y='27' width='32' height='23' rx='5' fill='%230c1712' stroke='%231ad88a' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/","gsap":"./node_modules/gsap/index.js"}}</script>
+</head>
+<body>
+  <main class="studio">
+    <header class="studio-header">
+      <a class="studio-brand" href="./" aria-label="CardShare film"><span class="brand-dot"></span>CardShare<span class="studio-slash">/</span><span class="studio-subtitle">Motion study 01</span></a>
+      <span class="edition">ONE CONNECTION. <span>24 SEC / 9:16</span></span>
+    </header>
+    <div class="viewing-room">
+      <aside class="director-note" aria-hidden="true"><span class="tiny-label">THE BRAND FILM</span><h1>One connection.<br><em>Shared benefits.</em></h1><p>A little possibility.<br>A familiar connection.<br>A better way forward.</p><span class="specimen-line"></span><span class="technical-note">An original CardShare motion study.<br>Picture and sound. Made to move.</span></aside>
+      <div class="film-wrap">
+        <section id="film" aria-label="24-second CardShare promotional film">
+          <div id="stage-space">
+            <div id="environment"></div>
+            <canvas id="world" aria-hidden="true"></canvas>
+            <div id="floor-glow"></div>
+            <svg id="thread" viewBox="0 0 540 960" aria-hidden="true"><defs><filter id="thread-glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="5"/></filter><linearGradient id="thread-gradient"><stop stop-color="#19d889" stop-opacity="0"/><stop offset=".45" stop-color="#19d889"/><stop offset="1" stop-color="#c7ffe6"/></linearGradient></defs><path id="thread-halo" fill="none" stroke="#15d584" stroke-width="7" filter="url(#thread-glow)"/><path id="thread-core" fill="none" stroke="url(#thread-gradient)" stroke-width="1.8" stroke-linecap="round"/><circle id="thread-head" r="3.2" fill="#d8ffec"/></svg>
+            <div id="film-masthead"><span class="tiny-brand">Card<span>Share</span></span><span class="film-index">A NEW KIND OF CONNECTION</span></div>
+
+            <div id="hook-copy" class="copy-block">
+              <div id="hook-one" class="kinetic"><span class="overline">THE POSSIBILITY</span><h2><span data-split>THE DISCOUNT</span><span data-split>IS THERE.</span></h2></div>
+              <div id="hook-two" class="kinetic"><h2><span data-split>YOUR CARD</span><span data-split class="green">ISN’T.</span></h2></div>
+            </div>
+            <span id="material-caption" class="overline">ELIGIBILITY OPENS THE DOOR.</span>
+            <div id="discount-token" aria-hidden="true"><span>%</span><i></i></div>
+
+            <div id="friction-copy" class="copy-block"><span class="overline">SO CLOSE. STILL OUT OF REACH.</span><h2><span data-split>A great offer.</span><span data-split class="muted">The wrong card.</span></h2></div>
+            <div id="shopping-panel" class="glass-panel">
+              <div class="shop-header"><span class="shop-symbol">s.</span><span>THE EVERYDAY STORE</span><span class="mini-bag">⌑</span></div>
+              <div class="shop-product"><div class="sculpture"><div class="sculpture-loop"></div><div class="sculpture-base"></div></div><div class="shop-product-copy"><span class="overline">THE EDIT / 01</span><b>Something<br>worth saving on.</b><span>Selected collection</span></div></div>
+              <div class="offer-divider"></div><div class="offer-line"><span>Card-exclusive offer</span><strong>20% OFF</strong></div>
+              <div id="eligibility-lock"><svg viewBox="0 0 24 24"><path d="M7 10V7a5 5 0 0 1 10 0v3M5 10h14v11H5z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span>An eligible card is required</span><span class="lock-indicator"></span></div>
+              <span class="shop-example">Illustrative offer</span>
+            </div>
+            <div id="until-copy"><span data-split>UNTIL</span><span data-split class="green">NOW.</span></div>
+
+            <div id="connection-copy" class="copy-block"><span class="overline">THE MISSING PIECE</span><h2><span data-split>Closer than</span><span data-split class="green">you think.</span></h2></div>
+            <div id="customer-panel" class="connection-panel"><span class="node-index">01 / CUSTOMER</span><div class="node-profile"><span class="avatar">S</span><div><strong>Sara</strong><span>A little more possibility.</span></div></div><div class="node-footer"><span class="small-ring"></span>Looking for an eligible offer</div></div>
+            <div id="holder-panel" class="connection-panel"><span class="node-index">02 / CARDHOLDER</span><div class="node-profile"><span class="avatar avatar-green">A</span><div><strong>Ahmed</strong><span>Someone you already trust.</span></div></div><div class="node-footer"><span class="status-check">✓</span>Eligible card · willing to help</div></div>
+            <div id="connection-label"><span class="micro-dot"></span>A TRUSTED CONNECTION</div>
+
+            <div id="brand-seal"><img id="original-logo" src="./assets/cardshare-original.png" alt="Original CardShare logo"><div class="seal-sheen"></div></div>
+            <div id="reveal-copy"><span class="overline">INTRODUCING</span><div class="reveal-wordmark"><span data-split>Card</span><span data-split class="green">Share</span></div><span class="reveal-subtitle">The connection changes everything.</span></div>
+
+            <div id="product-copy" class="copy-block"><span class="overline">A LITTLE CONNECTION. A LOT OF POSSIBILITY.</span><div class="step-headline"><h2 id="discover-title" data-split>Discover.</h2><h2 id="connect-title" data-split>Connect.</h2><h2 id="benefit-title" data-split>Benefit.</h2></div><span id="product-step">01 — FIND YOUR POSSIBILITY</span></div>
+            <div id="phone-rig">
+              <div class="phone-back"></div><div class="phone-side"></div><div class="phone-volume"></div>
+              <div class="phone-front"><div class="phone-screen">
+                <div class="phone-status"><span>9:41</span><span class="phone-island"></span><span class="phone-indicators">▴ ▰</span></div>
+                <div class="phone-brand"><span class="phone-brand-space"></span><strong>Card<span>Share</span></strong><span class="phone-avatar">S</span></div>
+                <div class="phone-greeting"><span>GOOD EVENING, SARA</span><h3>A little more<br><em>for you.</em></h3></div>
+                <div id="phone-tabs"><span class="selected">For you</span><span>Your circle</span><span>Saved</span></div>
+                <div id="phone-offer" class="phone-offer"><div class="offer-visual"><span class="offer-orbit"></span><span class="offer-orbit two"></span><div class="offer-diamond"></div><span class="offer-number">20<span>%</span></span><span class="offer-off">OFF</span></div><div class="phone-offer-details"><span class="phone-tag">A LITTLE EVERYDAY LUXURY</span><h4>The Everyday Store</h4><p>Selected items · Eligible cards only</p><div id="find-connection">Find a connection <span>↗</span></div></div></div>
+                <div id="secondary-offer"><span class="secondary-illustration">↗</span><div><strong>A different kind of reward.</strong><span>More possibilities in your circle.</span></div></div>
+                <div id="match-panel"><span class="phone-tag">IN YOUR TRUSTED CIRCLE</span><div class="match-person"><span class="avatar avatar-green">A</span><div><strong>Ahmed</strong><span>Eligible cardholder</span></div><span class="status-check">✓</span></div><div class="match-state"><span id="match-request-label">Request to connect</span><span id="match-accepted-label">Request accepted ✓</span></div><p>They place the eligible order.<br>You coordinate together.</p></div>
+                <div id="benefit-panel"><div id="success-ring"><svg viewBox="0 0 72 72"><circle cx="36" cy="36" r="32"/><path id="success-tick" d="M21 37l10 10 21-22"/></svg></div><span class="phone-tag">A GOOD CONNECTION GOES FURTHER</span><h3>Savings<br><em>confirmed.</em></h3><div class="phone-receipt"><span>Example saving</span><strong>PKR 800</strong></div><div class="phone-receipt"><span>Cardholder reward</span><strong>PKR 200</strong></div><span class="receipt-note">Illustrative split of a PKR 1,000 discount.</span></div>
+                <div class="phone-nav"><span class="nav-active">⌂<small>Home</small></span><span>◇<small>Discover</small></span><span>◎<small>Circle</small></span></div><div class="phone-home-indicator"></div>
+              </div><div class="phone-reflection"></div></div>
+              <div id="touch-cursor"><div></div></div>
+            </div>
+            <div id="phone-caption"><span id="phone-caption-a">Find the possibility.</span><span id="phone-caption-b">Make the connection.</span><span id="phone-caption-c">Share the benefit.</span></div>
+            <div id="concept-note">Illustrative journey · Eligible, permitted offers only.</div>
+
+            <div id="payoff-copy" class="copy-block"><span class="overline">GOOD FOR YOU. GOOD FOR THEM.</span><h2><span data-split>Better,</span><span data-split class="green">together.</span></h2></div>
+            <div id="save-panel" class="payoff-panel"><div class="payoff-icon">↘</div><span class="overline">THE CUSTOMER</span><h2>YOU<br><em>SAVE.</em></h2><span class="payoff-detail">More value from your everyday.</span><span class="panel-number">01</span></div>
+            <div id="earn-panel" class="payoff-panel"><div class="payoff-icon">↗</div><span class="overline">THE CARDHOLDER</span><h2>CARDHOLDERS<br><em>EARN.</em></h2><span class="payoff-detail">Rewards on permitted offers.</span><span class="panel-number">02</span></div>
+
+            <div id="finale-copy"><div class="final-wordmark"><span data-split>Card</span><span data-split class="green">Share</span></div><div class="final-tagline"><span data-split>ONE CONNECTION.</span><span data-split>SHARED BENEFITS.</span></div><div id="final-rule" class="final-rule"></div><span id="final-caption" class="final-caption">A little connection goes a long way.</span></div>
+            <div id="final-sweep"></div><div id="vignette"></div><div id="grain"></div><div id="blackout"></div>
+          </div>
+        </section>
+        <div class="player" aria-label="Playback controls outside film">
+          <div class="transport"><button id="play-toggle" aria-label="Play film">Play</button><button id="replay" aria-label="Replay film">↺</button><span id="timecode">00.0 <span>/ 24.0</span></span><button id="sound-toggle" aria-label="Enable soundtrack" aria-pressed="false">Sound off</button><button id="fullscreen" aria-label="Full screen player">⛶</button></div>
+          <input id="scrubber" type="range" min="0" max="24" step="0.001" value="0" aria-label="Film timeline">
+          <div class="chapter-ticks"><span>HOOK</span><span>CONNECT</span><span>EXPERIENCE</span><span>BENEFIT</span></div>
+        </div>
+      </div>
+      <aside class="chapter-list"><span class="tiny-label">THE SEQUENCE</span><button data-seek="0">01 <span>The possibility</span><time>00:00</time></button><button data-seek="3.6">02 <span>The missing piece</span><time>00:03</time></button><button data-seek="7.5">03 <span>The connection</span><time>00:07</time></button><button data-seek="11.6">04 <span>The experience</span><time>00:11</time></button><button data-seek="18.5">05 <span>The benefit</span><time>00:18</time></button><button data-seek="22">06 <span>Together</span><time>00:21</time></button><p>Space to play / pause<br>← → to move through the film<br>M to hear the original score</p></aside>
+    </div>
+    <footer class="studio-footer"><span>CARDSHARE / BRAND FILM</span><span id="load-status" role="status">Preparing picture & sound…</span><span>EMERALD. OBSIDIAN. CONNECTION.</span></footer>
+  </main>
+  <audio id="soundtrack" src="./assets/soundtrack.wav" preload="auto"></audio>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
